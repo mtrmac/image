@@ -7,6 +7,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
+	digest "github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -32,6 +33,10 @@ type genericManifest interface {
 	// The Digest field is guaranteed to be provided; Size may be -1.
 	// WARNING: The list may contain duplicates, and they are semantically relevant.
 	LayerInfos() []types.BlobInfo
+	// LayerDiffIDs returns a list of DiffIDs (= digests of the UNCOMPRESSED versions) of layers referenced by this image,
+	// in order (the root layer first, and then successive layered layers), if available, or nil if not.
+	// WARNING: The list may contain duplicates, and they are semantically relevant.
+	LayerDiffIDs(context.Context) ([]digest.Digest, error)
 	// EmbeddedDockerReferenceConflicts whether a Docker reference embedded in the manifest, if any, conflicts with destination ref.
 	// It returns false if the manifest does not embed a Docker reference.
 	// (This embedding unfortunately happens for Docker schema1, please do not add support for this in any new formats.)

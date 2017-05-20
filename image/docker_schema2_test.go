@@ -33,6 +33,9 @@ func (f unusedImageSource) Close() error {
 func (f unusedImageSource) GetManifest(context.Context, *digest.Digest) ([]byte, string, error) {
 	panic("Unexpected call to a mock function")
 }
+func (f unusedImageSource) GetOriginalManifest(context.Context, *digest.Digest) ([]byte, string, error) {
+	panic("Unexpected call to a mock function")
+}
 func (f unusedImageSource) HasThreadSafeGetBlob() bool {
 	panic("Unexpected call to a mock function")
 }

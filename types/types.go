@@ -620,6 +620,8 @@ type SystemContext struct {
 	DockerDisableDestSchema1MIMETypes bool
 	// If true, the physical pull source of docker transport images logged as info level
 	DockerLogMirrorChoice bool
+
+	// === ostree.Transport overrides ===
 	// Directory to use for OSTree temporary files
 	OSTreeTmpDirPath string
 

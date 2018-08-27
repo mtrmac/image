@@ -14,7 +14,73 @@ import (
 	digest "github.com/opencontainers/go-digest"
 )
 
-func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image types.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error) {
+// verificationCache contains data cached in PolicyContext to speed up signature verification
+// FIXME? Generalize this to be initialized when parsing the policy, instead of having specific fields in PolicyContext? Or is this cleaner?
+type verificationCache struct {
+	mech              SigningMechanism
+	trustedIdentities []string
+}
+
+func verificationCacheFromData(data []byte) (verificationCache, error) {
+	mech, trustedIdentities, err := NewEphemeralGPGSigningMechanism(data)
+	if err != nil {
+		return verificationCache{}, err
+	}
+	return verificationCache{
+		mech:              mech,
+		trustedIdentities: trustedIdentities,
+	}, nil
+}
+
+func (pc *PolicyContext) initializeSignatureCache() {
+	pc.verificationCacheByKeyData = map[string]verificationCache{}
+	pc.verificationCacheByKeyPath = map[string]verificationCache{}
+}
+
+func (pc *PolicyContext) destroySignatureCache() {
+	for _, c := range pc.verificationCacheByKeyData {
+		_ = c.mech.Close()
+	}
+	for _, c := range pc.verificationCacheByKeyPath {
+		_ = c.mech.Close()
+	}
+}
+
+// verificationCache returns a verificationCache instance appopriate for pr, creating it if necessary.
+func (pr *prSignedBy) verificationCache(pc *PolicyContext) (verificationCache, error) {
+	switch {
+	case pr.KeyPath != "" && pr.KeyData != nil:
+		return verificationCache{}, errors.New(`Internal inconsistency: both "keyPath" and "keyData" specified`)
+
+	case pr.KeyData != nil:
+		if vc, ok := pc.verificationCacheByKeyData[string(pr.KeyData)]; ok {
+			return vc, nil
+		}
+		vc, err := verificationCacheFromData(pr.KeyData)
+		if err != nil {
+			return verificationCache{}, err
+		}
+		pc.verificationCacheByKeyData[string(pr.KeyData)] = vc
+		return vc, nil
+
+	default: // Use pr.KeyPath
+		if vc, ok := pc.verificationCacheByKeyPath[pr.KeyPath]; ok {
+			return vc, nil
+		}
+		data, err := os.ReadFile(pr.KeyPath)
+		if err != nil {
+			return verificationCache{}, err
+		}
+		vc, err := verificationCacheFromData(data)
+		if err != nil {
+			return verificationCache{}, err
+		}
+		pc.verificationCacheByKeyPath[pr.KeyPath] = vc
+		return vc, nil
+	}
+}
+
+func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, pc *PolicyContext, image types.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error) {
 	switch pr.KeyType {
 	case SBKeyTypeGPGKeys:
 	case SBKeyTypeSignedByGPGKeys, SBKeyTypeX509Certificates, SBKeyTypeSignedByX509CAs:
@@ -25,34 +91,17 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image types
 		return sarRejected, nil, fmt.Errorf(`Unknown "keyType" value "%s"`, string(pr.KeyType))
 	}
 
-	if pr.KeyPath != "" && pr.KeyData != nil {
-		return sarRejected, nil, errors.New(`Internal inconsistency: both "keyPath" and "keyData" specified`)
-	}
-	// FIXME: move this to per-context initialization
-	var data []byte
-	if pr.KeyData != nil {
-		data = pr.KeyData
-	} else {
-		d, err := os.ReadFile(pr.KeyPath)
-		if err != nil {
-			return sarRejected, nil, err
-		}
-		data = d
-	}
-
-	// FIXME: move this to per-context initialization
-	mech, trustedIdentities, err := NewEphemeralGPGSigningMechanism(data)
+	vc, err := pr.verificationCache(pc)
 	if err != nil {
 		return sarRejected, nil, err
 	}
-	defer mech.Close()
-	if len(trustedIdentities) == 0 {
+	if len(vc.trustedIdentities) == 0 {
 		return sarRejected, nil, PolicyRequirementError("No public keys imported")
 	}
 
-	signature, err := verifyAndExtractSignature(mech, sig, signatureAcceptanceRules{
+	signature, err := verifyAndExtractSignature(vc.mech, sig, signatureAcceptanceRules{
 		validateKeyIdentity: func(keyIdentity string) error {
-			for _, trustedIdentity := range trustedIdentities {
+			for _, trustedIdentity := range vc.trustedIdentities {
 				if keyIdentity == trustedIdentity {
 					return nil
 				}
@@ -89,7 +138,7 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image types
 	return sarAccepted, signature, nil
 }
 
-func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image types.UnparsedImage) (bool, error) {
+func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, pc *PolicyContext, image types.UnparsedImage) (bool, error) {
 	// FIXME: pass context.Context
 	sigs, err := image.Signatures(ctx)
 	if err != nil {
@@ -98,7 +147,7 @@ func (pr *prSignedBy) isRunningImageAllowed(ctx context.Context, image types.Unp
 	var rejections []error
 	for _, s := range sigs {
 		var reason error
-		switch res, _, err := pr.isSignatureAuthorAccepted(ctx, image, s); res {
+		switch res, _, err := pr.isSignatureAuthorAccepted(ctx, pc, image, s); res {
 		case sarAccepted:
 			// One accepted signature is enough.
 			return true, nil

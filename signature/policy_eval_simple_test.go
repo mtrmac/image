@@ -32,26 +32,28 @@ func (ref nameOnlyImageReferenceMock) StringWithinTransport() string {
 
 func TestPRInsecureAcceptAnythingIsSignatureAuthorAccepted(t *testing.T) {
 	pr := NewPRInsecureAcceptAnything()
-	// Pass nil signature to, kind of, test that the return value does not depend on it.
-	sar, parsedSig, err := pr.isSignatureAuthorAccepted(context.Background(), nameOnlyImageMock{}, nil)
+	// Pass nil signature and context to, kind of, test that the return value does not depend on them.
+	sar, parsedSig, err := pr.isSignatureAuthorAccepted(context.Background(), nil, nameOnlyImageMock{}, nil)
 	assertSARUnknown(t, sar, parsedSig, err)
 }
 
 func TestPRInsecureAcceptAnythingIsRunningImageAllowed(t *testing.T) {
 	pr := NewPRInsecureAcceptAnything()
-	res, err := pr.isRunningImageAllowed(context.Background(), nameOnlyImageMock{})
+	// Pass nil PolicyContext, kind of, test that the return value does not depend on it.
+	res, err := pr.isRunningImageAllowed(context.Background(), nil, nameOnlyImageMock{})
 	assertRunningAllowed(t, res, err)
 }
 
 func TestPRRejectIsSignatureAuthorAccepted(t *testing.T) {
 	pr := NewPRReject()
-	// Pass nil signature to, kind of, test that the return value does not depend on it.
-	sar, parsedSig, err := pr.isSignatureAuthorAccepted(context.Background(), nameOnlyImageMock{}, nil)
+	// Pass nil signature and context to, kind of, test that the return value does not depend on them.
+	sar, parsedSig, err := pr.isSignatureAuthorAccepted(context.Background(), nil, nameOnlyImageMock{}, nil)
 	assertSARRejectedPolicyRequirement(t, sar, parsedSig, err)
 }
 
 func TestPRRejectIsRunningImageAllowed(t *testing.T) {
 	pr := NewPRReject()
-	res, err := pr.isRunningImageAllowed(context.Background(), nameOnlyImageMock{})
+	// Pass nil PolicyContext, kind of, test that the return value does not depend on it.
+	res, err := pr.isRunningImageAllowed(context.Background(), nil, nameOnlyImageMock{})
 	assertRunningRejectedPolicyRequirement(t, res, err)
 }

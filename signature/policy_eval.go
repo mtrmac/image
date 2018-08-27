@@ -32,11 +32,6 @@ const (
 // PolicyRequirement is a rule which must be satisfied by at least one of the signatures of an image.
 // The type is public, but its definition is private.
 type PolicyRequirement interface {
-	// FIXME: For speed, we should support creating per-context state (not stored in the PolicyRequirement), to cache
-	// costly initialization like creating temporary GPG home directories and reading files.
-	// Setup() (someState, error)
-	// Then, the operations below would be done on the someState object, not directly on a PolicyRequirement.
-
 	// isSignatureAuthorAccepted, given an image and a signature blob, returns:
 	// - sarAccepted if the signature has been verified against the appropriate public key
 	//   (where "appropriate public key" may depend on the contents of the signature);
@@ -55,14 +50,14 @@ type PolicyRequirement interface {
 	//   a container based on this image; use IsRunningImageAllowed instead.
 	// - Just because a signature is accepted does not automatically mean the contents of the
 	//   signature are authorized to run code as root, or to affect system or cluster configuration.
-	isSignatureAuthorAccepted(ctx context.Context, image types.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error)
+	isSignatureAuthorAccepted(ctx context.Context, pc *PolicyContext, image types.UnparsedImage, sig []byte) (signatureAcceptanceResult, *Signature, error)
 
 	// isRunningImageAllowed returns true if the requirement allows running an image.
 	// If it returns false, err must be non-nil, and should be an PolicyRequirementError if evaluation
 	// succeeded but the result was rejection.
 	// WARNING: This validates signatures and the manifest, but does not download or validate the
 	// layers. Users must validate that the layers match their expected digests.
-	isRunningImageAllowed(ctx context.Context, image types.UnparsedImage) (bool, error)
+	isRunningImageAllowed(ctx context.Context, pc *PolicyContext, image types.UnparsedImage) (bool, error)
 }
 
 // PolicyReferenceMatch specifies a set of image identities accepted in PolicyRequirement.
@@ -79,6 +74,9 @@ type PolicyReferenceMatch interface {
 type PolicyContext struct {
 	Policy *Policy
 	state  policyContextState // Internal consistency checking
+	// A private cache for prSignedBy instances
+	verificationCacheByKeyData map[string]verificationCache
+	verificationCacheByKeyPath map[string]verificationCache
 }
 
 // policyContextState is used internally to verify the users are not misusing a PolicyContext.
@@ -106,7 +104,7 @@ func (pc *PolicyContext) changeState(expected, new policyContextState) error {
 // If this function succeeds, the caller should call PolicyContext.Destroy() when done.
 func NewPolicyContext(policy *Policy) (*PolicyContext, error) {
 	pc := &PolicyContext{Policy: policy, state: pcInitializing}
-	// FIXME: initialize
+	pc.initializeSignatureCache()
 	if err := pc.changeState(pcInitializing, pcReady); err != nil {
 		// Huh?! This should never fail, we didn't give the pointer to anybody.
 		// Just give up and leave unclean state around.
@@ -120,7 +118,7 @@ func (pc *PolicyContext) Destroy() error {
 	if err := pc.changeState(pcReady, pcDestroying); err != nil {
 		return err
 	}
-	// FIXME: destroy
+	pc.destroySignatureCache()
 	return pc.changeState(pcDestroying, pcDestroyed)
 }
 
@@ -204,8 +202,7 @@ func (pc *PolicyContext) GetSignaturesWithAcceptedAuthor(ctx context.Context, im
 	interpretingReqs:
 		for reqNumber, req := range reqs {
 			// FIXME: Log the requirement itself? For now, we use just the number.
-			// FIXME: supply state
-			switch res, as, err := req.isSignatureAuthorAccepted(ctx, image, sig); res {
+			switch res, as, err := req.isSignatureAuthorAccepted(ctx, pc, image, sig); res {
 			case sarAccepted:
 				if as == nil { // Coverage: this should never happen
 					logrus.Debugf(" Requirement %d: internal inconsistency: sarAccepted but no parsed contents", reqNumber)
@@ -274,8 +271,7 @@ func (pc *PolicyContext) IsRunningImageAllowed(ctx context.Context, image types.
 	}
 
 	for reqNumber, req := range reqs {
-		// FIXME: supply state
-		allowed, err := req.isRunningImageAllowed(ctx, image)
+		allowed, err := req.isRunningImageAllowed(ctx, pc, image)
 		if !allowed {
 			logrus.Debugf("Requirement %d: denied, done", reqNumber)
 			return false, err

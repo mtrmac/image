@@ -12,7 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containers/image/docker/reference"
 	"github.com/containers/image/image"
+	"github.com/containers/image/manifest"
 	"github.com/containers/image/pkg/compression"
 	"github.com/containers/image/signature"
 	"github.com/containers/image/transports"
@@ -206,6 +208,26 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 		return errors.Wrapf(err, "Error initializing image from source %s", transports.ImageName(c.rawSource.Reference()))
 	}
 
+	// If the destination is a digested reference, make a note of that, determine what digest value we're
+	// expecting, and check that the source manifest matches it.
+	destIsDigestedReference := false
+	if named := c.dest.Reference().DockerReference(); named != nil {
+		if digested, ok := named.(reference.Digested); ok {
+			destIsDigestedReference = true
+			sourceManifest, _, err := src.Manifest(ctx)
+			if err != nil {
+				return errors.Wrapf(err, "Error reading manifest from source image")
+			}
+			matches, err := manifest.MatchesDigest(sourceManifest, digested.Digest())
+			if err != nil {
+				return errors.Wrapf(err, "Error computing digest of source image's manifest")
+			}
+			if !matches {
+				return errors.New("Digest of source image's manifest would not match destination reference")
+			}
+		}
+	}
+
 	if err := checkImageDestinationForCurrentRuntimeOS(ctx, options.DestinationCtx, src, c.dest); err != nil {
 		return err
 	}
@@ -233,7 +255,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 		manifestUpdates: &types.ManifestUpdateOptions{InformationOnly: types.ManifestUpdateInformation{Destination: c.dest}},
 		src:             src,
 		// diffIDsAreNeeded is computed later
-		canModifyManifest: len(sigs) == 0,
+		canModifyManifest: len(sigs) == 0 && !destIsDigestedReference,
 	}
 
 	if err := ic.updateEmbeddedDockerReference(); err != nil {
@@ -258,7 +280,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	// and at least with the OpenShift registry "acceptschema2" option, there is no way to detect the support
 	// without actually trying to upload something and getting a types.ManifestTypeRejectedError.
 	// So, try the preferred manifest MIME type. If the process succeeds, fine…
-	manifest, err := ic.copyUpdatedConfigAndManifest(ctx)
+	manifestBytes, err := ic.copyUpdatedConfigAndManifest(ctx)
 	if err != nil {
 		logrus.Debugf("Writing manifest using preferred type %s failed: %v", preferredManifestMIMEType, err)
 		// … if it fails, _and_ the failure is because the manifest is rejected, we may have other options.
@@ -289,7 +311,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 			}
 
 			// We have successfully uploaded a manifest.
-			manifest = attemptedManifest
+			manifestBytes = attemptedManifest
 			errs = nil // Mark this as a success so that we don't abort below.
 			break
 		}
@@ -299,7 +321,7 @@ func (c *copier) copyOneImage(ctx context.Context, policyContext *signature.Poli
 	}
 
 	if options.SignBy != "" {
-		newSig, err := c.createSignature(manifest, options.SignBy)
+		newSig, err := c.createSignature(manifestBytes, options.SignBy)
 		if err != nil {
 			return err
 		}

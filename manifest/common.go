@@ -93,13 +93,18 @@ func updatedMIMEType(variantTable []compressionMIMETypeSet, mimeType string, upd
 	// {de}compressed.
 	switch updated.CompressionOperation {
 	case types.PreserveOriginal:
+		// Sadly, types.PreserveOriginal is the null value, so this cane mean both
+		// “keep the original media type” and “update with this type”.
+		// Consider the type in “updated” to be authoritative.
+		if updated.MediaType != "" {
+			return updated.MediaType, nil
+		}
 		// Force a change to the media type if we're being told to use a particular compressor,
 		// since it might be different from the one associated with the media type.  Otherwise,
 		// try to keep the original media type.
 		if updated.CompressionAlgorithm != nil {
 			return compressionVariantMIMEType(variantTable, mimeType, updated.CompressionAlgorithm)
 		}
-		// Keep the original media type.
 		return mimeType, nil
 
 	case types.Decompress:

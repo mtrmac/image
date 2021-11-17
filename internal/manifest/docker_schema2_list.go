@@ -246,6 +246,12 @@ func Schema2ListPublicFromManifest(manifest []byte) (*Schema2ListPublic, error) 
 	if err := json.Unmarshal(manifest, &list); err != nil {
 		return nil, fmt.Errorf("unmarshaling Schema2List %q: %w", string(manifest), err)
 	}
+	if list.SchemaVersion != 2 {
+		return nil, fmt.Errorf("unsupported schema version %d", list.SchemaVersion)
+	}
+	if list.MediaType != DockerV2ListMediaType {
+		return nil, fmt.Errorf("unexpected mediaType %q, expected %s", list.MediaType, DockerV2ListMediaType)
+	}
 	if err := ValidateUnambiguousManifestFormat(manifest, DockerV2ListMediaType,
 		AllowedFieldManifests); err != nil {
 		return nil, err

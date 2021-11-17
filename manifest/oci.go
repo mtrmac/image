@@ -60,6 +60,12 @@ func OCI1FromManifest(manifestBlob []byte) (*OCI1, error) {
 	if err := json.Unmarshal(manifestBlob, &oci1); err != nil {
 		return nil, err
 	}
+	if oci1.SchemaVersion != 2 {
+		return nil, fmt.Errorf("unsupported schema version %d", oci1.SchemaVersion)
+	}
+	if oci1.MediaType != "" && oci1.MediaType != imgspecv1.MediaTypeImageManifest {
+		return nil, fmt.Errorf("unexpected mediaType %q, expected %s", oci1.MediaType, imgspecv1.MediaTypeImageManifest)
+	}
 	if err := manifest.ValidateUnambiguousManifestFormat(manifestBlob, imgspecv1.MediaTypeImageIndex,
 		manifest.AllowedFieldConfig|manifest.AllowedFieldLayers); err != nil {
 		return nil, err

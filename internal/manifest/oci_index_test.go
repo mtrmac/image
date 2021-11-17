@@ -19,6 +19,15 @@ func TestOCI1IndexPublicFromManifest(t *testing.T) {
 	validManifest, err := os.ReadFile(filepath.Join("testdata", "ociv1.image.index.json"))
 	require.NoError(t, err)
 
+	// Invalid manifest version is rejected
+	m, err := OCI1IndexPublicFromManifest(validManifest)
+	require.NoError(t, err)
+	m.SchemaVersion = 1
+	manifest, err := m.Serialize()
+	require.NoError(t, err)
+	_, err = OCI1IndexPublicFromManifest(manifest)
+	assert.Error(t, err)
+
 	parser := func(m []byte) error {
 		_, err := OCI1IndexPublicFromManifest(m)
 		return err
@@ -37,6 +46,15 @@ func TestOCI1IndexPublicFromManifest(t *testing.T) {
 func TestOCI1IndexFromManifest(t *testing.T) {
 	validManifest, err := os.ReadFile(filepath.Join("testdata", "ociv1.image.index.json"))
 	require.NoError(t, err)
+
+	// Invalid manifest version is rejected
+	m, err := OCI1IndexFromManifest(validManifest)
+	require.NoError(t, err)
+	m.SchemaVersion = 1
+	manifest, err := m.Serialize()
+	require.NoError(t, err)
+	_, err = OCI1IndexFromManifest(manifest)
+	assert.Error(t, err)
 
 	parser := func(m []byte) error {
 		_, err := OCI1IndexFromManifest(m)

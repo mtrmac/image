@@ -380,14 +380,18 @@ func (index *OCI1IndexPublic) ToSchema2List() (*Schema2ListPublic, error) {
 func OCI1IndexPublicFromManifest(manifest []byte) (*OCI1IndexPublic, error) {
 	index := OCI1IndexPublic{
 		Index: imgspecv1.Index{
-			Versioned:   imgspec.Versioned{SchemaVersion: 2},
-			MediaType:   imgspecv1.MediaTypeImageIndex,
 			Manifests:   []imgspecv1.Descriptor{},
 			Annotations: make(map[string]string),
 		},
 	}
 	if err := json.Unmarshal(manifest, &index); err != nil {
 		return nil, fmt.Errorf("unmarshaling OCI1Index %q: %w", string(manifest), err)
+	}
+	if index.SchemaVersion != 2 {
+		return nil, fmt.Errorf("unsupported schema version %d", index.SchemaVersion)
+	}
+	if index.MediaType != "" && index.MediaType != imgspecv1.MediaTypeImageIndex {
+		return nil, fmt.Errorf("unexpected mediaType %q, expected %s", index.MediaType, imgspecv1.MediaTypeImageIndex)
 	}
 	if err := ValidateUnambiguousManifestFormat(manifest, imgspecv1.MediaTypeImageIndex,
 		AllowedFieldManifests); err != nil {

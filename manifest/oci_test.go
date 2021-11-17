@@ -54,6 +54,15 @@ func TestOCI1FromManifest(t *testing.T) {
 	validManifest, err := os.ReadFile(filepath.Join("fixtures", "ociv1.manifest.json"))
 	require.NoError(t, err)
 
+	// Invalid manifest version is rejected
+	m, err := OCI1FromManifest(validManifest)
+	require.NoError(t, err)
+	m.SchemaVersion = 1
+	manifest, err := m.Serialize()
+	require.NoError(t, err)
+	_, err = OCI1FromManifest(manifest)
+	assert.Error(t, err)
+
 	parser := func(m []byte) error {
 		_, err := OCI1FromManifest(m)
 		return err
@@ -61,8 +70,7 @@ func TestOCI1FromManifest(t *testing.T) {
 	// Schema mismatch is rejected
 	testManifestFixturesAreRejected(t, parser, []string{
 		"schema2-to-schema1-by-docker.json",
-		// Not "v2s2.manifest.json" yet, without mediaType the two are too similar to tell the difference.
-		"v2list.manifest.json",
+		"v2s2.manifest.json", "v2list.manifest.json",
 		"ociv1.image.index.json",
 	})
 	// Extra fields are rejected

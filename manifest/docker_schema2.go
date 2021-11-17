@@ -161,14 +161,17 @@ func Schema2FromManifest(manifestBlob []byte) (*Schema2, error) {
 	if err := json.Unmarshal(manifestBlob, &s2); err != nil {
 		return nil, err
 	}
+	if s2.SchemaVersion != 2 {
+		return nil, fmt.Errorf("unsupported schema version %d", s2.SchemaVersion)
+	}
+	if s2.MediaType != DockerV2Schema2MediaType {
+		return nil, fmt.Errorf("unexpected mediaType %q, expected %s", s2.MediaType, DockerV2Schema2MediaType)
+	}
 	if err := manifest.ValidateUnambiguousManifestFormat(manifestBlob, DockerV2Schema2MediaType,
 		manifest.AllowedFieldConfig|manifest.AllowedFieldLayers); err != nil {
 		return nil, err
 	}
-	// Check manifest's and layers' media types.
-	if err := SupportedSchema2MediaType(s2.MediaType); err != nil {
-		return nil, err
-	}
+	// Check layers' media types.
 	for _, layer := range s2.LayersDescriptors {
 		if err := SupportedSchema2MediaType(layer.MediaType); err != nil {
 			return nil, err

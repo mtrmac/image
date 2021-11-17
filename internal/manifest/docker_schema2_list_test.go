@@ -17,6 +17,15 @@ func TestSchema2ListPublicFromManifest(t *testing.T) {
 	validManifest, err := os.ReadFile(filepath.Join("testdata", "v2list.manifest.json"))
 	require.NoError(t, err)
 
+	// Invalid manifest version is rejected
+	m, err := Schema2ListPublicFromManifest(validManifest)
+	require.NoError(t, err)
+	m.SchemaVersion = 1
+	manifest, err := m.Serialize()
+	require.NoError(t, err)
+	_, err = Schema2ListPublicFromManifest(manifest)
+	assert.Error(t, err)
+
 	parser := func(m []byte) error {
 		_, err := Schema2ListPublicFromManifest(m)
 		return err
@@ -92,6 +101,15 @@ func TestSchema2ListEditInstances(t *testing.T) {
 func TestSchema2ListFromManifest(t *testing.T) {
 	validManifest, err := os.ReadFile(filepath.Join("testdata", "v2list.manifest.json"))
 	require.NoError(t, err)
+
+	// Invalid manifest version is rejected
+	m, err := Schema2ListFromManifest(validManifest)
+	require.NoError(t, err)
+	m.SchemaVersion = 1
+	manifest, err := m.Serialize()
+	require.NoError(t, err)
+	_, err = Schema2ListFromManifest(manifest)
+	assert.Error(t, err)
 
 	parser := func(m []byte) error {
 		_, err := Schema2ListFromManifest(m)

@@ -50,6 +50,15 @@ func TestSchema2FromManifest(t *testing.T) {
 	validManifest, err := os.ReadFile(filepath.Join("fixtures", "v2s2.manifest.json"))
 	require.NoError(t, err)
 
+	// Invalid manifest version is rejected
+	m, err := Schema2FromManifest(validManifest)
+	require.NoError(t, err)
+	m.SchemaVersion = 1
+	manifest, err := m.Serialize()
+	require.NoError(t, err)
+	_, err = Schema2FromManifest(manifest)
+	assert.Error(t, err)
+
 	parser := func(m []byte) error {
 		_, err := Schema2FromManifest(m)
 		return err

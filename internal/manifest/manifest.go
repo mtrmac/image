@@ -39,6 +39,7 @@ const (
 // but we may not have such metadata available (e.g. when the manifest is a local file).
 // This is publicly visible as c/image/manifest.GuessMIMEType.
 func GuessMIMEType(manifest []byte) string {
+	// FIXME: Reject ambiguous files, improve test coverage.
 	// A subset of manifest fields; the rest is silently ignored by json.Unmarshal.
 	// Also docker/distribution/manifest.Versioned.
 	meta := struct {

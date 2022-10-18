@@ -178,7 +178,8 @@ func TestReferenceParse(t *testing.T) {
 			t.Fail()
 		}
 
-		repo, err := Parse(testcase.input)
+		//repo, err := Parse(testcase.input)
+		repo, err := ParseManual(testcase.input)
 		if testcase.err != nil {
 			if err == nil {
 				failf("missing expected error: %v", testcase.err)
@@ -654,4 +655,31 @@ func TestParseNamed(t *testing.T) {
 			failf("unexpected name: got %q, expected %q", name, testcase.name)
 		}
 	}
+}
+
+var sinkRef []Reference
+var sinkErr []error
+
+func BenchmarkParseRegexp(b *testing.B) {
+	var rs []Reference
+	var es []error
+	for i := 0; i < b.N; i++ {
+		r, e := Parse("quay.io/alpine/libpod")
+		rs = append(rs, r)
+		es = append(es, e)
+	}
+	sinkRef = rs
+	sinkErr = es
+}
+
+func BenchmarkParseManual(b *testing.B) {
+	var rs []Reference
+	var es []error
+	for i := 0; i < b.N; i++ {
+		r, e := ParseManual("quay.io/alpine/libpod")
+		rs = append(rs, r)
+		es = append(es, e)
+	}
+	sinkRef = rs
+	sinkErr = es
 }

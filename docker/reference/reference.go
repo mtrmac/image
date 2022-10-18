@@ -233,6 +233,320 @@ func Parse(s string) (Reference, error) {
 	return r, nil
 }
 
+func findANEnd(s string, start int) int {
+	pos := start
+	for pos < len(s) {
+		c := s[pos]
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+			break
+		}
+		pos++
+	}
+	if pos == start {
+		return -1
+	}
+	return pos
+}
+
+func findSepEnd(s string, start int) int {
+	if start == len(s) {
+		return -1
+	}
+	switch s[start] {
+	case '.':
+		return start + 1
+	case '_':
+		pos := start + 1
+		if pos < len(s) && s[pos] == '_' {
+			return start + 2
+		}
+		return pos
+	case '-':
+		pos := start + 1
+		for pos < len(s) && s[pos] == '-' {
+			pos++
+		}
+		return pos
+	default:
+		return -1
+	}
+}
+
+func findNameComponentEnd(s string, start int) int {
+	pos := findANEnd(s, start)
+	if pos == -1 {
+		return -1
+	}
+	for pos < len(s) {
+		sepEnd := findSepEnd(s, pos)
+		if sepEnd == -1 {
+			break
+		}
+		pos2 := findANEnd(s, sepEnd)
+		if pos2 == -1 {
+			return -1
+		}
+		pos = pos2
+	}
+	return pos
+}
+
+func findDCEnd(s string, start int) int {
+	if start == len(s) {
+		return -1
+	}
+	c := s[start]
+	if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+		return -1
+	}
+	mid := start + 1
+	pos := mid
+	for pos < len(s) {
+		c := s[pos]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-') {
+			break
+		}
+		pos++
+	}
+	if pos != mid {
+		c := s[pos-1]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			return -1
+		}
+	}
+	return pos
+}
+
+func findDomainEnd(s string) int {
+	pos := 0
+	for {
+		de := findDCEnd(s, pos)
+		if de == -1 {
+			return -1
+		}
+		if de == len(s) || s[de] != '.' {
+			pos = de
+			break
+		}
+		pos = de + 1
+	}
+	if pos < len(s) && s[pos] == ':' {
+		ns := pos + 1
+		ne := ns
+		for ne < len(s) {
+			c := s[ne]
+			if !(c >= '0' && c <= '9') {
+				break
+			}
+			ne++
+		}
+		if ne == ns {
+			return -1
+		}
+		pos = ne
+	}
+	return pos
+}
+
+func parseName(s string) parseResult {
+	var res parseResult
+	pos := 0
+	res.domainEnd = -1
+	de := findDomainEnd(s)
+	if de != -1 && de != 0 && de < len(s) && s[de] == '/' {
+		res.domainEnd = de
+		pos = de + 1
+	}
+	res.otherNameStart = pos
+	for {
+		ne := findNameComponentEnd(s, pos)
+		if ne == -1 {
+			return parseResult{nameEnd: -1}
+		}
+		if ne == len(s) || s[ne] != '/' {
+			pos = ne
+			break
+		}
+		pos = ne + 1
+	}
+	res.nameEnd = pos
+	return res
+}
+
+func findTagEnd(s string, start int) int {
+	if start == len(s) {
+		return -1
+	}
+	c := s[start]
+	if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+		return -1
+	}
+	pos := start + 1
+	maxPos := start + 127
+	if maxPos > len(s) {
+		maxPos = len(s)
+	}
+	for pos < maxPos {
+		c := s[pos]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '.') {
+			break
+		}
+		pos++
+	}
+	return pos
+}
+
+func findDigestEnd(s string, start int) int {
+	if start == len(s) {
+		return -1
+	}
+	c := s[start]
+	if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+		return -1
+	}
+	pos := start + 1
+	for pos < len(s) {
+		c := s[pos]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+			break
+		}
+		pos++
+	}
+	for pos < len(s) {
+		c := s[pos]
+		if !(c == '-' || c == '_' || c == '+' || c == '.') {
+			break
+		}
+		pos++
+		if pos == len(s) {
+			return -1
+		}
+		c = s[pos]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+			return -1
+		}
+		pos++
+		for pos < len(s) {
+			c := s[pos]
+			if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+				break
+			}
+			pos++
+		}
+	}
+	if pos == len(s) || s[pos] != ':' {
+		return -1
+	}
+	digestStart := pos
+	for pos < len(s) {
+		c := s[start]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'F') || (c >= '0' && c <= 'f')) {
+			break
+		}
+		pos++
+	}
+	if pos-digestStart < 32 {
+		return -1
+	}
+	return pos
+}
+
+type parseResult struct {
+	nameEnd                                  int
+	domainEnd, otherNameStart                int
+	tagStart, tagEnd, digestStart, digestEnd int
+}
+
+func parseManual(s string) parseResult {
+	res := parseName(s)
+	if res.nameEnd == -1 {
+		return parseResult{nameEnd: -1}
+	}
+	pos := res.nameEnd
+	res.tagStart = -1
+	res.tagEnd = -1
+	if pos < len(s) && s[pos] == ':' {
+		pos++
+		res.tagStart = pos
+		pos2 := findTagEnd(s, pos)
+		pos = pos2
+		if pos == -1 {
+			return parseResult{nameEnd: -1}
+		}
+		res.tagEnd = pos
+	}
+	res.digestStart = -1
+	res.digestEnd = -1
+	if pos < len(s) && s[pos] == '@' {
+		pos++
+		res.digestStart = pos
+		pos2 := findDigestEnd(s, pos)
+
+		pos = pos2
+		if pos == -1 {
+			return parseResult{nameEnd: -1}
+		}
+		res.digestEnd = pos
+	}
+	if pos != len(s) {
+		return parseResult{nameEnd: -1}
+	}
+	return res
+}
+
+// Parse parses s and returns a syntactically valid Reference.
+// If an error was encountered it is returned, along with a nil Reference.
+// NOTE: Parse will not handle short digests.
+func ParseManual(s string) (Reference, error) {
+	matches := parseManual(s)
+	if matches.nameEnd == -1 {
+		if s == "" {
+			return nil, ErrNameEmpty
+		}
+		if matches := parseManual(strings.ToLower(s)); matches.nameEnd != -1 {
+			return nil, ErrNameContainsUppercase
+		}
+		return nil, ErrReferenceInvalidFormat
+	}
+
+	if matches.nameEnd > NameTotalLengthMax {
+		return nil, ErrNameTooLong
+	}
+
+	var repo repository
+
+	if matches.domainEnd != -1 {
+		repo.domain = s[0:matches.domainEnd]
+		repo.path = s[matches.otherNameStart:matches.nameEnd]
+	} else {
+		repo.domain = ""
+		repo.path = s[0:matches.nameEnd]
+	}
+
+	var tag string
+	if matches.tagStart != -1 {
+		tag = s[matches.tagStart:matches.tagEnd]
+	}
+	ref := reference{
+		namedRepository: repo,
+		tag:             tag,
+	}
+	if matches.digestStart != -1 {
+		var err error
+		ref.digest, err = digest.Parse(s[matches.digestStart:matches.digestEnd])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	r := getBestReferenceType(ref)
+	if r == nil {
+		return nil, ErrNameEmpty
+	}
+
+	return r, nil
+}
+
 // ParseNamed parses s and returns a syntactically valid reference implementing
 // the Named interface. The reference must have a name and be in the canonical
 // form, otherwise an error is returned.

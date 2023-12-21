@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
@@ -329,6 +330,32 @@ func TestLookasideStorageURL(t *testing.T) {
 	baseURL, err := url.Parse("file:///tmp")
 	require.NoError(t, err)
 	_, err = lookasideStorageURL(baseURL, digest.Digest("sha256:../hello"), 0)
+	assert.Error(t, err)
+
+	_, err = manifest.Schema2ListFromManifest([]byte(`{
+		"schemaVersion": 2,
+		"mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+		"manifests": [
+		   {
+			  "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+			  "size": 527,
+			  "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/../../..",
+			  "platform": {
+				 "architecture": "amd64",
+				 "os": "linux"
+			  }
+		   },
+		   {
+			"mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+			"size": 527,
+			"digest": "no-colon",
+			"platform": {
+			   "architecture": "amd64",
+			   "os": "linux"
+			}
+		 }
+		]}
+	 `))
 	assert.Error(t, err)
 }
 

@@ -92,7 +92,7 @@ func (mem *cache) RecordDigestUncompressedPair(anyDigest digest.Digest, uncompre
 	mem.mutex.Lock()
 	defer mem.mutex.Unlock()
 	if previous, ok := mem.uncompressedDigests[anyDigest]; ok && previous != uncompressed {
-		logrus.Warnf("Uncompressed digest for blob %s previously recorded as %s, now %s", anyDigest, previous, uncompressed)
+		logrus.Warnf("Uncompressed digest for blob %s previously recorded as %s, now %s", anyDigest, previous, uncompressed) // FIXME:Text control characters in values (digest)
 	}
 	mem.uncompressedDigests[anyDigest] = uncompressed
 
@@ -124,7 +124,7 @@ func (mem *cache) RecordDigestCompressorName(blobDigest digest.Digest, compresso
 	mem.mutex.Lock()
 	defer mem.mutex.Unlock()
 	if previous, ok := mem.compressors[blobDigest]; ok && previous != compressorName {
-		logrus.Warnf("Compressor for blob with digest %s previously recorded as %s, now %s", blobDigest, previous, compressorName)
+		logrus.Warnf("Compressor for blob with digest %s previously recorded as %s, now %s", blobDigest, previous, compressorName) // FIXME:Text control characters in values (digest)
 	}
 	if compressorName == blobinfocache.UnknownCompression {
 		delete(mem.compressors, blobDigest)

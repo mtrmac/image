@@ -248,7 +248,7 @@ func (ref ociReference) indexPath() string {
 // blobPath returns a path for a blob within a directory using OCI image-layout conventions.
 func (ref ociReference) blobPath(digest digest.Digest, sharedBlobDir string) (string, error) {
 	if err := digest.Validate(); err != nil {
-		return "", fmt.Errorf("unexpected digest reference %s: %w", digest, err)
+		return "", fmt.Errorf("unexpected digest reference %s: %w", digest, err) // FIXME:Text control characters in values
 	}
 	var blobDir string
 	if sharedBlobDir != "" {

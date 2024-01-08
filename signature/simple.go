@@ -50,9 +50,9 @@ type untrustedSignature struct {
 // There is NO REASON to expect the values to be correct, or not intentionally misleading
 // (including things like “✅ Verified by $authority”)
 type UntrustedSignatureInformation struct {
-	UntrustedDockerManifestDigest digest.Digest
-	UntrustedDockerReference      string // FIXME: more precise type?
-	UntrustedCreatorID            *string
+	UntrustedDockerManifestDigest digest.Digest // FIXME:Text control characters in values
+	UntrustedDockerReference      string        // FIXME: more precise type? // FIXME:Text control characters in values
+	UntrustedCreatorID            *string       // FIXME:Text control characters in values
 	UntrustedTimestamp            *time.Time
 	UntrustedShortKeyIdentifier   string
 }

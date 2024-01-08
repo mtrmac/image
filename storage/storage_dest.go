@@ -724,7 +724,7 @@ func (s *storageImageDestination) commitLayer(index int, info addedLayerInfo, si
 		// We are also ignoring lookups by TOC, and other non-trivial situations.
 		// Those can only happen using the c/image/internal/private API,
 		// so those internal callers should be fixed to follow the API instead of expanding this fallback.
-		logrus.Debugf("looking for diffID for blob=%+v", info.digest)
+		logrus.Debugf("looking for diffID for blob=%+v", info.digest) // FIXME:Text control characters in values
 
 		// Use tryReusingBlobAsPending, not the top-level TryReusingBlobWithOptions, to prevent recursion via queueOrCommit.
 		has, _, err := s.tryReusingBlobAsPending(info.digest, size, &private.TryReusingBlobOptions{

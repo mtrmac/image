@@ -105,7 +105,7 @@ func (r *Reader) List() ([][]types.ImageReference, error) {
 // If ref contains a source index, or neither a NamedTagged nor a source index, all tags
 // matching the image are returned.
 // Almost all users should use List() or ImageReference.DockerReference() instead.
-func (r *Reader) ManifestTagsForReference(ref types.ImageReference) ([]string, error) {
+func (r *Reader) ManifestTagsForReference(ref types.ImageReference) ([]string, error) { // FIXME:Text control characters in values
 	archiveRef, ok := ref.(archiveReference)
 	if !ok {
 		return nil, fmt.Errorf("Internal error: ManifestTagsForReference called for a non-docker/archive ImageReference %s", transports.ImageName(ref))

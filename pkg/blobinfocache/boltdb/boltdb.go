@@ -221,7 +221,7 @@ func (bdc *cache) RecordDigestUncompressedPair(anyDigest digest.Digest, uncompre
 				return err
 			}
 			if previous != uncompressed {
-				logrus.Warnf("Uncompressed digest for blob %s previously recorded as %s, now %s", anyDigest, previous, uncompressed)
+				logrus.Warnf("Uncompressed digest for blob %s previously recorded as %s, now %s", anyDigest, previous, uncompressed) // FIXME:Text control characters in values (digest)
 			}
 		}
 		if err := b.Put(key, []byte(uncompressed.String())); err != nil {
@@ -257,7 +257,7 @@ func (bdc *cache) RecordDigestCompressorName(anyDigest digest.Digest, compressor
 		key := []byte(anyDigest.String())
 		if previousBytes := b.Get(key); previousBytes != nil {
 			if string(previousBytes) != compressorName {
-				logrus.Warnf("Compressor for blob with digest %s previously recorded as %s, now %s", anyDigest, string(previousBytes), compressorName)
+				logrus.Warnf("Compressor for blob with digest %s previously recorded as %s, now %s", anyDigest, string(previousBytes), compressorName) // FIXME:Text control characters in values (digest)
 			}
 		}
 		if compressorName == blobinfocache.UnknownCompression {

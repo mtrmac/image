@@ -112,7 +112,7 @@ func (m *manifestSchema2) ConfigBlob(ctx context.Context) ([]byte, error) {
 		}
 		computedDigest := digest.FromBytes(blob)
 		if computedDigest != m.m.ConfigDescriptor.Digest {
-			return nil, fmt.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.ConfigDescriptor.Digest)
+			return nil, fmt.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.ConfigDescriptor.Digest) // FIXME:Text control characters in values
 		}
 		m.configBlob = blob
 	}

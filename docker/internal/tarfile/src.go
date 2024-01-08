@@ -229,7 +229,7 @@ func (s *Source) GetManifest(ctx context.Context, instanceDigest *digest.Digest)
 		for _, diffID := range s.orderedDiffIDList {
 			li, ok := s.knownLayers[diffID]
 			if !ok {
-				return nil, "", fmt.Errorf("Internal inconsistency: Information about layer %s missing", diffID)
+				return nil, "", fmt.Errorf("Internal inconsistency: Information about layer %s missing", diffID) // FIXME:Text control characters in values
 			}
 			m.LayersDescriptors = append(m.LayersDescriptors, manifest.Schema2Descriptor{
 				Digest:    diffID, // diffID is a digest of the uncompressed tarball
@@ -302,7 +302,7 @@ func (s *Source) GetBlob(ctx context.Context, info types.BlobInfo, cache types.B
 
 		uncompressedStream, _, err := compression.AutoDecompress(underlyingStream)
 		if err != nil {
-			return nil, 0, fmt.Errorf("auto-decompressing blob %s: %w", info.Digest, err)
+			return nil, 0, fmt.Errorf("auto-decompressing blob %s: %w", info.Digest, err) // FIXME:Text control characters in values (digest)
 		}
 
 		newStream := uncompressedReadCloser{
@@ -315,5 +315,5 @@ func (s *Source) GetBlob(ctx context.Context, info types.BlobInfo, cache types.B
 		return newStream, li.size, nil
 	}
 
-	return nil, 0, fmt.Errorf("Unknown blob %s", info.Digest)
+	return nil, 0, fmt.Errorf("Unknown blob %s", info.Digest) // FIXME:Text control characters in values (digest)
 }

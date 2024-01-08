@@ -466,25 +466,25 @@ type ManifestUpdateInformation struct {
 // The Tag field is a legacy field which is here just for the Docker v2s1 manifest. It won't be supported
 // for other manifest types.
 type ImageInspectInfo struct {
-	Tag           string
+	Tag           string // FIXME:Text control characters in values
 	Created       *time.Time
-	DockerVersion string
-	Labels        map[string]string
-	Architecture  string
-	Variant       string
-	Os            string
-	Layers        []string
+	DockerVersion string            // FIXME:Text control characters in values
+	Labels        map[string]string // FIXME:Text control characters in values
+	Architecture  string            // FIXME:Text control characters in values
+	Variant       string            // FIXME:Text control characters in values
+	Os            string            // FIXME:Text control characters in values
+	Layers        []string          // FIXME:Text control characters in values
 	LayersData    []ImageInspectLayer
-	Env           []string
-	Author        string
+	Env           []string // FIXME:Text control characters in values
+	Author        string   // FIXME:Text control characters in values
 }
 
 // ImageInspectLayer is a set of metadata describing an image layers' detail
 type ImageInspectLayer struct {
-	MIMEType    string // "" if unknown.
-	Digest      digest.Digest
-	Size        int64 // -1 if unknown.
-	Annotations map[string]string
+	MIMEType    string            // "" if unknown.// FIXME:Text control characters in values
+	Digest      digest.Digest     // FIXME:Text control characters in values
+	Size        int64             // -1 if unknown.
+	Annotations map[string]string // FIXME:Text control characters in values
 }
 
 // DockerAuthConfig contains authorization information for connecting to a registry.

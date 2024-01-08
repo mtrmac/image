@@ -315,7 +315,7 @@ func Image(ctx context.Context, policyContext *signature.PolicyContext, destRef,
 		if err != nil {
 			return nil, fmt.Errorf("choosing an image from manifest list %s: %w", transports.ImageName(srcRef), err)
 		}
-		logrus.Debugf("Source is a manifest list; copying (only) instance %s for current system", instanceDigest)
+		logrus.Debugf("Source is a manifest list; copying (only) instance %s for current system", instanceDigest) // FIXME:Text control characters in values
 		unparsedInstance := image.UnparsedInstance(rawSource, &instanceDigest)
 		single, err := c.copySingleImage(ctx, unparsedInstance, nil, copySingleImageOptions{requireCompressionFormatMatch: requireCompressionFormatMatch})
 		if err != nil {

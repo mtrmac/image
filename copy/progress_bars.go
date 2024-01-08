@@ -117,7 +117,7 @@ func (c *copier) createProgressBar(pool *mpb.Progress, partial bool, info types.
 // we still want to indicate when blobs and configs are copied.
 func (c *copier) printCopyInfo(kind string, info types.BlobInfo) {
 	if c.progressOutput == io.Discard {
-		c.Printf("Copying %s %s\n", kind, info.Digest)
+		c.Printf("Copying %s %s\n", kind, info.Digest) // FIXME:Text control characters in values
 	}
 }
 

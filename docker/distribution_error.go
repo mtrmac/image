@@ -53,7 +53,7 @@ func (e *unexpectedHTTPResponseError) Error() string {
 	return fmt.Sprintf("error parsing HTTP %d response body: %s: %q", e.StatusCode, e.ParseErr.Error(), string(e.Response))
 }
 
-func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
+func parseHTTPErrorResponse(statusCode int, r io.Reader) error { // FIXME:Text control characters in result
 	var errors errcode.Errors
 	body, err := io.ReadAll(r)
 	if err != nil {

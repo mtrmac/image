@@ -91,7 +91,7 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 				return err
 			}
 			if !digestMatches {
-				return PolicyRequirementError(fmt.Sprintf("Signature for digest %s does not match", digest))
+				return PolicyRequirementError(fmt.Sprintf("Signature for digest %s does not match", digest)) // FIXME:Text control characters in values
 			}
 			return nil
 		},

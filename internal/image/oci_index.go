@@ -27,7 +27,7 @@ func manifestOCI1FromImageIndex(ctx context.Context, sys *types.SystemContext, s
 		return nil, fmt.Errorf("computing manifest digest: %w", err)
 	}
 	if !matches {
-		return nil, fmt.Errorf("Image manifest does not match selected manifest digest %s", targetManifestDigest)
+		return nil, fmt.Errorf("Image manifest does not match selected manifest digest %s", targetManifestDigest) // FIXME:Text control characters in values
 	}
 
 	return manifestInstanceFromBlob(ctx, sys, src, manblob, mt)

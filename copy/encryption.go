@@ -41,7 +41,7 @@ func (ic *imageCopier) blobPipelineDecryptionStep(stream *sourceStream, srcInfo 
 	}
 
 	if ic.cannotModifyManifestReason != "" {
-		return nil, fmt.Errorf("layer %s should be decrypted, but we can’t modify the manifest: %s", srcInfo.Digest, ic.cannotModifyManifestReason)
+		return nil, fmt.Errorf("layer %s should be decrypted, but we can’t modify the manifest: %s", srcInfo.Digest, ic.cannotModifyManifestReason) // FIXME:Text control characters in values (digest)
 	}
 
 	desc := imgspecv1.Descriptor{
@@ -53,7 +53,7 @@ func (ic *imageCopier) blobPipelineDecryptionStep(stream *sourceStream, srcInfo 
 	// i.e. it doesn’t authenticate the origin of the metadata in any way.
 	reader, _, err := ocicrypt.DecryptLayer(ic.c.options.OciDecryptConfig, stream.reader, desc, false)
 	if err != nil {
-		return nil, fmt.Errorf("decrypting layer %s: %w", srcInfo.Digest, err)
+		return nil, fmt.Errorf("decrypting layer %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values
 	}
 
 	stream.reader = reader
@@ -92,7 +92,7 @@ func (ic *imageCopier) blobPipelineEncryptionStep(stream *sourceStream, toEncryp
 	}
 
 	if ic.cannotModifyManifestReason != "" {
-		return nil, fmt.Errorf("layer %s should be encrypted, but we can’t modify the manifest: %s", srcInfo.Digest, ic.cannotModifyManifestReason)
+		return nil, fmt.Errorf("layer %s should be encrypted, but we can’t modify the manifest: %s", srcInfo.Digest, ic.cannotModifyManifestReason) // FIXME:Text control characters in values (digest)
 	}
 
 	var annotations map[string]string
@@ -107,7 +107,7 @@ func (ic *imageCopier) blobPipelineEncryptionStep(stream *sourceStream, toEncryp
 	}
 	reader, finalizer, err := ocicrypt.EncryptLayer(ic.c.options.OciEncryptConfig, stream.reader, desc)
 	if err != nil {
-		return nil, fmt.Errorf("encrypting blob %s: %w", srcInfo.Digest, err)
+		return nil, fmt.Errorf("encrypting blob %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values
 	}
 
 	stream.reader = reader

@@ -15,7 +15,7 @@ import (
 // Internal users should usually use List instead.
 type ListPublic interface {
 	// MIMEType returns the MIME type of this particular manifest list.
-	MIMEType() string
+	MIMEType() string // FIXME:Text control characters in values
 
 	// Instances returns a list of the manifests that this list knows of, other than its own.
 	Instances() []digest.Digest

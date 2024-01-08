@@ -75,7 +75,7 @@ func platformCompressionMap(list internalManifest.List, instanceDigests []digest
 	for _, instanceDigest := range instanceDigests {
 		instanceDetails, err := list.Instance(instanceDigest)
 		if err != nil {
-			return nil, fmt.Errorf("getting details for instance %s: %w", instanceDigest, err)
+			return nil, fmt.Errorf("getting details for instance %s: %w", instanceDigest, err) // FIXME:Text control characters in values
 		}
 		platform := platformV1ToPlatformComparable(instanceDetails.ReadOnly.Platform)
 		platformSet, ok := res[platform]
@@ -120,12 +120,12 @@ func prepareInstanceCopies(list internalManifest.List, instanceDigests []digest.
 	for i, instanceDigest := range instanceDigests {
 		if options.ImageListSelection == CopySpecificImages &&
 			!slices.Contains(options.Instances, instanceDigest) {
-			logrus.Debugf("Skipping instance %s (%d/%d)", instanceDigest, i+1, len(instanceDigests))
+			logrus.Debugf("Skipping instance %s (%d/%d)", instanceDigest, i+1, len(instanceDigests)) // FIXME:Text control characters in values
 			continue
 		}
 		instanceDetails, err := list.Instance(instanceDigest)
 		if err != nil {
-			return res, fmt.Errorf("getting details for instance %s: %w", instanceDigest, err)
+			return res, fmt.Errorf("getting details for instance %s: %w", instanceDigest, err) // FIXME:Text control characters in values
 		}
 		forceCompressionFormat, err := shouldRequireCompressionFormatMatch(options)
 		if err != nil {
@@ -238,8 +238,8 @@ func (c *copier) copyMultipleImages(ctx context.Context) (copiedManifest []byte,
 		// populate necessary fields.
 		switch instance.op {
 		case instanceCopyCopy:
-			logrus.Debugf("Copying instance %s (%d/%d)", instance.sourceDigest, i+1, len(instanceCopyList))
-			c.Printf("Copying image %s (%d/%d)\n", instance.sourceDigest, i+1, len(instanceCopyList))
+			logrus.Debugf("Copying instance %s (%d/%d)", instance.sourceDigest, i+1, len(instanceCopyList)) // FIXME:Text control characters in values
+			c.Printf("Copying image %s (%d/%d)\n", instance.sourceDigest, i+1, len(instanceCopyList))       // FIXME:Text control characters in values
 			unparsedInstance := image.UnparsedInstance(c.rawSource, &instanceCopyList[i].sourceDigest)
 			updated, err := c.copySingleImage(ctx, unparsedInstance, &instanceCopyList[i].sourceDigest, copySingleImageOptions{requireCompressionFormatMatch: instance.copyForceCompressionFormat})
 			if err != nil {
@@ -254,8 +254,8 @@ func (c *copier) copyMultipleImages(ctx context.Context) (copiedManifest []byte,
 				UpdateCompressionAlgorithms: updated.compressionAlgorithms,
 				UpdateMediaType:             updated.manifestMIMEType})
 		case instanceCopyClone:
-			logrus.Debugf("Replicating instance %s (%d/%d)", instance.sourceDigest, i+1, len(instanceCopyList))
-			c.Printf("Replicating image %s (%d/%d)\n", instance.sourceDigest, i+1, len(instanceCopyList))
+			logrus.Debugf("Replicating instance %s (%d/%d)", instance.sourceDigest, i+1, len(instanceCopyList)) // FIXME:Text control characters in values
+			c.Printf("Replicating image %s (%d/%d)\n", instance.sourceDigest, i+1, len(instanceCopyList))       // FIXME:Text control characters in values
 			unparsedInstance := image.UnparsedInstance(c.rawSource, &instanceCopyList[i].sourceDigest)
 			updated, err := c.copySingleImage(ctx, unparsedInstance, &instanceCopyList[i].sourceDigest, copySingleImageOptions{
 				requireCompressionFormatMatch: true,

@@ -63,7 +63,7 @@ func (i *UnparsedImage) Manifest(ctx context.Context) ([]byte, string, error) {
 				return nil, "", fmt.Errorf("computing manifest digest: %w", err)
 			}
 			if !matches {
-				return nil, "", fmt.Errorf("Manifest does not match provided manifest digest %s", digest)
+				return nil, "", fmt.Errorf("Manifest does not match provided manifest digest %s", digest) // FIXME:Text control characters in values
 			}
 		}
 

@@ -47,7 +47,7 @@ func blobPipelineDetectCompressionStep(stream *sourceStream, srcInfo types.BlobI
 	// This requires us to “peek ahead” into the stream to read the initial part, which requires us to chain through another io.Reader returned by DetectCompression.
 	format, decompressor, reader, err := compression.DetectCompressionFormat(stream.reader) // We could skip this in some cases, but let's keep the code path uniform
 	if err != nil {
-		return bpDetectCompressionStepData{}, fmt.Errorf("reading blob %s: %w", srcInfo.Digest, err)
+		return bpDetectCompressionStepData{}, fmt.Errorf("reading blob %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values
 	}
 	stream.reader = reader
 
@@ -63,7 +63,7 @@ func blobPipelineDetectCompressionStep(stream *sourceStream, srcInfo types.BlobI
 	}
 
 	if expectedBaseFormat, known := expectedBaseCompressionFormats[stream.info.MediaType]; known && res.isCompressed && format.BaseVariantName() != expectedBaseFormat.Name() {
-		logrus.Debugf("blob %s with type %s should be compressed with %s, but compressor appears to be %s", srcInfo.Digest.String(), srcInfo.MediaType, expectedBaseFormat.Name(), format.Name())
+		logrus.Debugf("blob %s with type %s should be compressed with %s, but compressor appears to be %s", srcInfo.Digest.String(), srcInfo.MediaType, expectedBaseFormat.Name(), format.Name()) // FIXME:Text control characters in values (digest)
 	}
 	return res, nil
 }
@@ -101,7 +101,7 @@ func (ic *imageCopier) blobPipelineCompressionStep(stream *sourceStream, canModi
 	// short-circuit conditions
 	layerCompressionChangeSupported := ic.src.CanChangeLayerCompression(stream.info.MediaType)
 	if !layerCompressionChangeSupported {
-		logrus.Debugf("Compression change for blob %s (%q) not supported", srcInfo.Digest, stream.info.MediaType)
+		logrus.Debugf("Compression change for blob %s (%q) not supported", srcInfo.Digest, stream.info.MediaType) // FIXME:Text control characters in values (digest)
 	}
 	if canModifyBlob && layerCompressionChangeSupported {
 		for _, fn := range []func(*sourceStream, bpDetectCompressionStepData) (*bpCompressionStepData, error){

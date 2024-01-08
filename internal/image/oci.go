@@ -76,7 +76,7 @@ func (m *manifestOCI1) ConfigBlob(ctx context.Context) ([]byte, error) {
 		}
 		computedDigest := digest.FromBytes(blob)
 		if computedDigest != m.m.Config.Digest {
-			return nil, fmt.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.Config.Digest)
+			return nil, fmt.Errorf("Download config.json digest %s does not match expected %s", computedDigest, m.m.Config.Digest) // FIXME:Text control characters in values
 		}
 		m.configBlob = blob
 	}

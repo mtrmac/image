@@ -367,7 +367,7 @@ func (ic *imageCopier) compareImageDestinationManifestEqual(ctx context.Context,
 
 	destManifest, destManifestType, err := destImageSource.GetManifest(ctx, targetInstance)
 	if err != nil {
-		logrus.Debugf("Unable to get destination image %s/%s manifest: %v", destImageSource, targetInstance, err)
+		logrus.Debugf("Unable to get destination image %s/%s manifest: %v", destImageSource, targetInstance, err) // FIXME:Text control characters in values : targetInstance
 		return nil, nil
 	}
 
@@ -615,7 +615,7 @@ func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
 
 			configBlob, err := src.ConfigBlob(ctx)
 			if err != nil {
-				return types.BlobInfo{}, fmt.Errorf("reading config blob %s: %w", srcInfo.Digest, err)
+				return types.BlobInfo{}, fmt.Errorf("reading config blob %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values
 			}
 
 			destInfo, err := ic.copyBlobFromStream(ctx, bytes.NewReader(configBlob), srcInfo, nil, true, false, bar, -1, false)
@@ -630,7 +630,7 @@ func (ic *imageCopier) copyConfig(ctx context.Context, src types.Image) error {
 			return err
 		}
 		if destInfo.Digest != srcInfo.Digest {
-			return fmt.Errorf("Internal error: copying uncompressed config blob %s changed digest to %s", srcInfo.Digest, destInfo.Digest)
+			return fmt.Errorf("Internal error: copying uncompressed config blob %s changed digest to %s", srcInfo.Digest, destInfo.Digest) // FIXME:Text control characters in values
 		}
 	}
 	return nil
@@ -706,7 +706,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 	if canAvoidProcessingCompleteLayer {
 		canChangeLayerCompression := ic.src.CanChangeLayerCompression(srcInfo.MediaType)
 		logrus.Debugf("Checking if we can reuse blob %s: general substitution = %v, compression for MIME type %q = %v",
-			srcInfo.Digest, ic.canSubstituteBlobs, srcInfo.MediaType, canChangeLayerCompression)
+			srcInfo.Digest, ic.canSubstituteBlobs, srcInfo.MediaType, canChangeLayerCompression) // FIXME:Text control characters in values (digest)
 		canSubstitute := ic.canSubstituteBlobs && canChangeLayerCompression
 
 		var requiredCompression *compressiontypes.Algorithm
@@ -737,11 +737,11 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 			TOCDigest:               tocDigest,
 		})
 		if err != nil {
-			return types.BlobInfo{}, "", fmt.Errorf("trying to reuse blob %s at destination: %w", srcInfo.Digest, err)
+			return types.BlobInfo{}, "", fmt.Errorf("trying to reuse blob %s at destination: %w", srcInfo.Digest, err) // FIXME:Text control characters in values (digest)
 		}
 		if reused {
-			logrus.Debugf("Skipping blob %s (already present):", srcInfo.Digest)
-			if err := func() error { // A scope for defer
+			logrus.Debugf("Skipping blob %s (already present):", srcInfo.Digest) // FIXME:Text control characters in values (digest)
+			if err := func() error {                                             // A scope for defer
 				label := "skipped: already exists"
 				if reusedBlob.MatchedByTOCDigest {
 					label = "skipped: already exists (found by TOC)"
@@ -800,7 +800,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 				}
 				bar.mark100PercentComplete()
 				hideProgressBar = false
-				logrus.Debugf("Retrieved partial blob %v", srcInfo.Digest)
+				logrus.Debugf("Retrieved partial blob %v", srcInfo.Digest) // FIXME:Text control characters in values (digest)
 				return true, updatedBlobInfoFromUpload(srcInfo, uploadedBlob), nil
 			}
 			logrus.Debugf("Failed to retrieve partial blob: %v", err)
@@ -824,7 +824,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 
 		srcStream, srcBlobSize, err := ic.c.rawSource.GetBlob(ctx, srcInfo, ic.c.blobInfoCache)
 		if err != nil {
-			return types.BlobInfo{}, "", fmt.Errorf("reading blob %s: %w", srcInfo.Digest, err)
+			return types.BlobInfo{}, "", fmt.Errorf("reading blob %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values (digest)
 		}
 		defer srcStream.Close()
 
@@ -842,7 +842,7 @@ func (ic *imageCopier) copyLayer(ctx context.Context, srcInfo types.BlobInfo, to
 				if diffIDResult.err != nil {
 					return types.BlobInfo{}, "", fmt.Errorf("computing layer DiffID: %w", diffIDResult.err)
 				}
-				logrus.Debugf("Computed DiffID %s for layer %s", diffIDResult.digest, srcInfo.Digest)
+				logrus.Debugf("Computed DiffID %s for layer %s", diffIDResult.digest, srcInfo.Digest) // FIXME:Text control characters in values (digest)
 				// Don’t record any associations that involve encrypted data. This is a bit crude,
 				// some blob substitutions (replacing pulls of encrypted data with local reuse of known decryption outcomes)
 				// might be safe, but it’s not trivially obvious, so let’s be conservative for now.

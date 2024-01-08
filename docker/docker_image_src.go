@@ -411,7 +411,7 @@ func (s *dockerImageSource) GetBlobAt(ctx context.Context, info types.BlobInfo, 
 		return nil, nil, err
 	}
 	path := fmt.Sprintf(blobsPath, reference.Path(s.physicalRef.ref), info.Digest.String())
-	logrus.Debugf("Downloading %s", path)
+	logrus.Debugf("Downloading %s", path) // FIXME:Text control characters in values
 	res, err := s.c.makeRequest(ctx, http.MethodGet, path, headers, nil, v2Auth, nil)
 	if err != nil {
 		return nil, nil, err
@@ -641,7 +641,7 @@ func (s *dockerImageSource) getSignaturesFromSigstoreAttachments(ctx context.Con
 	for layerIndex, layer := range ociManifest.Layers {
 		// Note that this copies all kinds of attachments: attestations, and whatever else is there,
 		// not just signatures. We leave the signature consumers to decide based on the MIME type.
-		logrus.Debugf("Fetching sigstore attachment %d/%d: %s", layerIndex+1, len(ociManifest.Layers), layer.Digest.String())
+		logrus.Debugf("Fetching sigstore attachment %d/%d: %s", layerIndex+1, len(ociManifest.Layers), layer.Digest.String()) // FIXME:Text control characters in values
 		// We don’t benefit from a real BlobInfoCache here because we never try to reuse/mount attachment payloads.
 		// That might eventually need to change if payloads grow to be not just signatures, but something
 		// significantly large.

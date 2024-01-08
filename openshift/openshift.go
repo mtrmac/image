@@ -117,13 +117,13 @@ func (c *openshiftClient) doRequest(ctx context.Context, method, path string, re
 	switch {
 	case res.StatusCode == http.StatusSwitchingProtocols: // FIXME?! No idea why this weird case exists in k8s.io/kubernetes/pkg/client/restclient.
 		if statusValid && status.Status != "Success" {
-			return nil, errors.New(status.Message)
+			return nil, errors.New(status.Message) // FIXME:Text control characters in values
 		}
 	case res.StatusCode >= http.StatusOK && res.StatusCode <= http.StatusPartialContent:
 		// OK.
 	default:
 		if statusValid {
-			return nil, errors.New(status.Message)
+			return nil, errors.New(status.Message) // FIXME:Text control characters in values
 		}
 		return nil, fmt.Errorf("HTTP error: status code: %d (%s), body: %s", res.StatusCode, http.StatusText(res.StatusCode), string(body))
 	}

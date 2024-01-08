@@ -163,7 +163,7 @@ func (m *Schema1) UpdateLayerInfos(layerInfos []types.BlobInfo) error {
 		// There are no MIME types in schema1, but we do a “conversion” here to reject unsupported compression algorithms,
 		// in a way that is consistent with the other schema implementations.
 		if _, err := updatedMIMEType(schema1CompressionMIMETypeSets, fakeSchema1MIMEType, info); err != nil {
-			return fmt.Errorf("preparing updated manifest, layer %q: %w", info.Digest, err)
+			return fmt.Errorf("preparing updated manifest, layer %q: %w", info.Digest, err) // FIXME:Text control characters in values (digest)
 		}
 		// (docker push) sets up m.ExtractedV1Compatibility[].{Id,Parent} based on values of info.Digest,
 		// but (docker pull) ignores them in favor of computing DiffIDs from uncompressed data, except verifying the child->parent links and uniqueness.

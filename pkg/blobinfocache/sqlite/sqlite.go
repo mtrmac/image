@@ -374,7 +374,7 @@ func (sqc *cache) RecordDigestUncompressedPair(anyDigest digest.Digest, uncompre
 				return void{}, err
 			}
 			if previous != uncompressed {
-				logrus.Warnf("Uncompressed digest for blob %s previously recorded as %s, now %s", anyDigest, previous, uncompressed)
+				logrus.Warnf("Uncompressed digest for blob %s previously recorded as %s, now %s", anyDigest, previous, uncompressed) // FIXME:Text control characters in values (digest)
 			}
 		}
 		if _, err := tx.Exec("INSERT OR REPLACE INTO DigestUncompressedPairs(anyDigest, uncompressedDigest) VALUES (?, ?)",
@@ -411,7 +411,7 @@ func (sqc *cache) RecordDigestCompressorName(anyDigest digest.Digest, compressor
 			return void{}, fmt.Errorf("looking for compressor of for %q", anyDigest)
 		}
 		if gotPrevious && previous != compressorName {
-			logrus.Warnf("Compressor for blob with digest %s previously recorded as %s, now %s", anyDigest, previous, compressorName)
+			logrus.Warnf("Compressor for blob with digest %s previously recorded as %s, now %s", anyDigest, previous, compressorName) // FIXME:Text control characters in values (digest)
 		}
 		if compressorName == blobinfocache.UnknownCompression {
 			if _, err := tx.Exec("DELETE FROM DigestCompressors WHERE digest = ?", anyDigest.String()); err != nil {

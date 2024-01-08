@@ -234,7 +234,7 @@ func (d *dockerImageDestination) blobExists(ctx context.Context, repo reference.
 		return false, -1, err
 	}
 	checkPath := fmt.Sprintf(blobsPath, reference.Path(repo), digest.String())
-	logrus.Debugf("Checking %s", checkPath)
+	logrus.Debugf("Checking %s", checkPath) // FIXME:Text control characters in values
 	res, err := d.c.makeRequest(ctx, http.MethodHead, checkPath, nil, nil, v2Auth, extraScope)
 	if err != nil {
 		return false, -1, err
@@ -246,12 +246,12 @@ func (d *dockerImageDestination) blobExists(ctx context.Context, repo reference.
 		return true, getBlobSize(res), nil
 	case http.StatusUnauthorized:
 		logrus.Debugf("... not authorized")
-		return false, -1, fmt.Errorf("checking whether a blob %s exists in %s: %w", digest, repo.Name(), registryHTTPResponseToError(res))
+		return false, -1, fmt.Errorf("checking whether a blob %s exists in %s: %w", digest, repo.Name(), registryHTTPResponseToError(res)) // FIXME:Text control characters in values (digest)
 	case http.StatusNotFound:
 		logrus.Debugf("... not present")
 		return false, -1, nil
 	default:
-		return false, -1, fmt.Errorf("checking whether a blob %s exists in %s: %w", digest, repo.Name(), registryHTTPResponseToError(res))
+		return false, -1, fmt.Errorf("checking whether a blob %s exists in %s: %w", digest, repo.Name(), registryHTTPResponseToError(res)) // FIXME:Text control characters in values (digest)
 	}
 }
 
@@ -293,10 +293,10 @@ func (d *dockerImageDestination) mountBlob(ctx context.Context, srcRepo referenc
 			}
 		}
 		// Anyway, if canceling the upload fails, ignore it and return the more important error:
-		return fmt.Errorf("Mounting %s from %s to %s started an upload instead", srcDigest, srcRepo.Name(), d.ref.ref.Name())
+		return fmt.Errorf("Mounting %s from %s to %s started an upload instead", srcDigest, srcRepo.Name(), d.ref.ref.Name()) // FIXME:Text control characters in values (digest)
 	default:
 		logrus.Debugf("Error mounting, response %#v", *res)
-		return fmt.Errorf("mounting %s from %s to %s: %w", srcDigest, srcRepo.Name(), d.ref.ref.Name(), registryHTTPResponseToError(res))
+		return fmt.Errorf("mounting %s from %s to %s: %w", srcDigest, srcRepo.Name(), d.ref.ref.Name(), registryHTTPResponseToError(res)) // FIXME:Text control characters in values (digest)
 	}
 }
 
@@ -364,9 +364,9 @@ func (d *dockerImageDestination) TryReusingBlobWithOptions(ctx context.Context, 
 		}
 		if !candidate.UnknownLocation {
 			if candidate.CompressionAlgorithm != nil {
-				logrus.Debugf("Trying to reuse blob with cached digest %s compressed with %s in destination repo %s", candidate.Digest.String(), candidate.CompressionAlgorithm.Name(), candidateRepo.Name())
+				logrus.Debugf("Trying to reuse blob with cached digest %s compressed with %s in destination repo %s", candidate.Digest.String(), candidate.CompressionAlgorithm.Name(), candidateRepo.Name()) // FIXME:Text control characters in values (digest)
 			} else {
-				logrus.Debugf("Trying to reuse blob with cached digest %s in destination repo %s", candidate.Digest.String(), candidateRepo.Name())
+				logrus.Debugf("Trying to reuse blob with cached digest %s in destination repo %s", candidate.Digest.String(), candidateRepo.Name()) // FIXME:Text control characters in values (digest)
 			}
 			// Sanity checks:
 			if reference.Domain(candidateRepo) != reference.Domain(d.ref.ref) {
@@ -380,9 +380,9 @@ func (d *dockerImageDestination) TryReusingBlobWithOptions(ctx context.Context, 
 			}
 		} else {
 			if candidate.CompressionAlgorithm != nil {
-				logrus.Debugf("Trying to reuse blob with cached digest %s compressed with %s with no location match, checking current repo", candidate.Digest.String(), candidate.CompressionAlgorithm.Name())
+				logrus.Debugf("Trying to reuse blob with cached digest %s compressed with %s with no location match, checking current repo", candidate.Digest.String(), candidate.CompressionAlgorithm.Name()) // FIXME:Text control characters in values (digest)
 			} else {
-				logrus.Debugf("Trying to reuse blob with cached digest %s in destination repo with no location match, checking current repo", candidate.Digest.String())
+				logrus.Debugf("Trying to reuse blob with cached digest %s in destination repo with no location match, checking current repo", candidate.Digest.String()) // FIXME:Text control characters in values (digest)
 			}
 			// This digest is a known variant of this blob but we don’t
 			// have a recorded location in this registry, let’s try looking
@@ -703,7 +703,7 @@ func (d *dockerImageDestination) putSignaturesToSigstoreAttachments(ctx context.
 		}, nil)
 		ociConfig.RootFS.Type = "layers"
 	} else {
-		logrus.Debugf("Fetching sigstore attachment config %s", ociManifest.Config.Digest.String())
+		logrus.Debugf("Fetching sigstore attachment config %s", ociManifest.Config.Digest.String()) // FIXME:Text control characters in values
 		// We don’t benefit from a real BlobInfoCache here because we never try to reuse/mount configs.
 		configBlob, err := d.c.getOCIDescriptorContents(ctx, d.ref, ociManifest.Config, iolimits.MaxConfigBodySize,
 			none.NoCache)
@@ -711,7 +711,7 @@ func (d *dockerImageDestination) putSignaturesToSigstoreAttachments(ctx context.
 			return err
 		}
 		if err := json.Unmarshal(configBlob, &ociConfig); err != nil {
-			return fmt.Errorf("parsing sigstore attachment config %s in %s: %w", ociManifest.Config.Digest.String(),
+			return fmt.Errorf("parsing sigstore attachment config %s in %s: %w", ociManifest.Config.Digest.String(), // FIXME:Text control characters in values
 				d.ref.ref.Name(), err)
 		}
 	}
@@ -728,7 +728,7 @@ func (d *dockerImageDestination) putSignaturesToSigstoreAttachments(ctx context.
 		alreadyOnRegistry := false
 		for _, layer := range ociManifest.Layers {
 			if layerMatchesSigstoreSignature(layer, mimeType, payloadBlob, annotations) {
-				logrus.Debugf("Signature with digest %s already exists on the registry", layer.Digest.String())
+				logrus.Debugf("Signature with digest %s already exists on the registry", layer.Digest.String()) // FIXME:Text control characters in values
 				alreadyOnRegistry = true
 				break
 			}

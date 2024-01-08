@@ -336,7 +336,7 @@ func CheckAuth(ctx context.Context, sys *types.SystemContext, username, password
 
 // SearchResult holds the information of each matching image
 // It matches the output returned by the v1 endpoint
-type SearchResult struct {
+type SearchResult struct { // FIXME:Text control characters in values
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	// StarCount states the number of stars the image has
@@ -352,7 +352,7 @@ type SearchResult struct {
 // The limit is the max number of results desired
 // Note: The limit value doesn't work with all registries
 // for example registry.access.redhat.com returns all the results without limiting it to the limit value
-func SearchRegistry(ctx context.Context, sys *types.SystemContext, registry, image string, limit int) ([]SearchResult, error) {
+func SearchRegistry(ctx context.Context, sys *types.SystemContext, registry, image string, limit int) ([]SearchResult, error) { // FIXME:Text control characters in result
 	type V2Results struct {
 		// Repositories holds the results returned by the /v2/_catalog endpoint
 		Repositories []string `json:"repositories"`
@@ -980,7 +980,7 @@ func (c *dockerClient) fetchManifest(ctx context.Context, ref dockerReference, t
 	logrus.Debugf("Content-Type from manifest GET is %q", res.Header.Get("Content-Type"))
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("reading manifest %s in %s: %w", tagOrDigest, ref.ref.Name(), registryHTTPResponseToError(res))
+		return nil, "", fmt.Errorf("reading manifest %s in %s: %w", tagOrDigest, ref.ref.Name(), registryHTTPResponseToError(res)) // FIXME:Text control characters in values (via tagOrDigest invalid digest)
 	}
 
 	manblob, err := iolimits.ReadAtMost(res.Body, iolimits.MaxManifestBodySize)
@@ -1051,7 +1051,7 @@ func (c *dockerClient) getBlob(ctx context.Context, ref dockerReference, info ty
 		return nil, 0, err
 	}
 	path := fmt.Sprintf(blobsPath, reference.Path(ref.ref), info.Digest.String())
-	logrus.Debugf("Downloading %s", path)
+	logrus.Debugf("Downloading %s", path) // FIXME:Text control characters in values
 	res, err := c.makeRequest(ctx, http.MethodGet, path, nil, nil, v2Auth, nil)
 	if err != nil {
 		return nil, 0, err
@@ -1083,7 +1083,7 @@ func (c *dockerClient) getOCIDescriptorContents(ctx context.Context, ref dockerR
 	defer reader.Close()
 	payload, err := iolimits.ReadAtMost(reader, maxSize)
 	if err != nil {
-		return nil, fmt.Errorf("reading blob %s in %s: %w", desc.Digest.String(), ref.ref.Name(), err)
+		return nil, fmt.Errorf("reading blob %s in %s: %w", desc.Digest.String(), ref.ref.Name(), err) // FIXME:Text control characters in values: desc.Digest
 	}
 	return payload, nil
 }
@@ -1164,7 +1164,7 @@ func (c *dockerClient) getExtensionsSignatures(ctx context.Context, ref dockerRe
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("downloading signatures for %s in %s: %w", manifestDigest, ref.ref.Name(), registryHTTPResponseToError(res))
+		return nil, fmt.Errorf("downloading signatures for %s in %s: %w", manifestDigest, ref.ref.Name(), registryHTTPResponseToError(res)) // FIXME:Text control characters in values manifestDigest
 	}
 
 	body, err := iolimits.ReadAtMost(res.Body, iolimits.MaxSignatureListBodySize)

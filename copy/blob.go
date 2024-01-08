@@ -35,7 +35,7 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 	// read stream to the end, and validation does not happen.
 	digestingReader, err := newDigestingReader(stream.reader, srcInfo.Digest)
 	if err != nil {
-		return types.BlobInfo{}, fmt.Errorf("preparing to verify blob %s: %w", srcInfo.Digest, err)
+		return types.BlobInfo{}, fmt.Errorf("preparing to verify blob %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values (digest)
 	}
 	stream.reader = digestingReader
 
@@ -124,15 +124,15 @@ func (ic *imageCopier) copyBlobFromStream(ctx context.Context, srcReader io.Read
 		logrus.Debugf("Consuming rest of the original blob to satisfy getOriginalLayerCopyWriter")
 		_, err := io.Copy(io.Discard, originalLayerReader)
 		if err != nil {
-			return types.BlobInfo{}, fmt.Errorf("reading input blob %s: %w", srcInfo.Digest, err)
+			return types.BlobInfo{}, fmt.Errorf("reading input blob %s: %w", srcInfo.Digest, err) // FIXME:Text control characters in values
 		}
 	}
 
 	if digestingReader.validationFailed { // Coverage: This should never happen.
-		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, digest verification failed but was ignored", srcInfo.Digest)
+		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, digest verification failed but was ignored", srcInfo.Digest) // FIXME:Text control characters in values
 	}
 	if stream.info.Digest != "" && uploadedInfo.Digest != stream.info.Digest {
-		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, blob with digest %s saved with digest %s", srcInfo.Digest, stream.info.Digest, uploadedInfo.Digest)
+		return types.BlobInfo{}, fmt.Errorf("Internal error writing blob %s, blob with digest %s saved with digest %s", srcInfo.Digest, stream.info.Digest, uploadedInfo.Digest) // FIXME:Text control characters in values
 	}
 	if digestingReader.validationSucceeded {
 		if err := compressionStep.recordValidatedDigestData(ic.c, uploadedInfo, srcInfo, encryptionStep, decryptionStep); err != nil {

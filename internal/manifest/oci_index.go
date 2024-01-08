@@ -120,16 +120,16 @@ func (index *OCI1IndexPublic) editInstances(editInstances []ListEdit) error {
 		switch editInstance.ListOperation {
 		case ListOpUpdate:
 			if err := editInstance.UpdateOldDigest.Validate(); err != nil {
-				return fmt.Errorf("OCI1Index.EditInstances: Attempting to update %s which is an invalid digest: %w", editInstance.UpdateOldDigest, err)
+				return fmt.Errorf("OCI1Index.EditInstances: Attempting to update %s which is an invalid digest: %w", editInstance.UpdateOldDigest, err) // FIXME:Text control characters in values
 			}
 			if err := editInstance.UpdateDigest.Validate(); err != nil {
-				return fmt.Errorf("OCI1Index.EditInstances: Modified digest %s is an invalid digest: %w", editInstance.UpdateDigest, err)
+				return fmt.Errorf("OCI1Index.EditInstances: Modified digest %s is an invalid digest: %w", editInstance.UpdateDigest, err) // FIXME:Text control characters in values
 			}
 			targetIndex := slices.IndexFunc(index.Manifests, func(m imgspecv1.Descriptor) bool {
 				return m.Digest == editInstance.UpdateOldDigest
 			})
 			if targetIndex == -1 {
-				return fmt.Errorf("OCI1Index.EditInstances: digest %s not found", editInstance.UpdateOldDigest)
+				return fmt.Errorf("OCI1Index.EditInstances: digest %s not found", editInstance.UpdateOldDigest) // FIXME:Text control characters in values
 			}
 			index.Manifests[targetIndex].Digest = editInstance.UpdateDigest
 			if editInstance.UpdateSize < 0 {

@@ -140,3 +140,5 @@ require (
 	google.golang.org/protobuf v1.33.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
+
+replace github.com/opencontainers/go-digest => github.com/mtrmac/go-digest v0.0.0-20240509153956-765cee4b6e7a

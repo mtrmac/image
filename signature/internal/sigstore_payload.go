@@ -182,12 +182,12 @@ func verifySigstorePayloadBlobSignature(publicKeys []crypto.PublicKey, unverifie
 		return nil, fmt.Errorf("Need at least one public key to verify the sigstore payload, but got 0")
 	}
 
-	signatureErrMsgs := make([]string, 0, len(publicKeys))
-	for _, pk := range publicKeys {
-		// loading a verifier indicates that something is really, really
-		// messed up with the public key, so we should probably error
-		// out
-		verifier, err := sigstoreSignature.LoadVerifier(pk, sigstoreHarcodedHashAlgorithm)
+	failures := make([]string, 0, len(publicKeys))
+	for _, key := range publicKeys {
+		// Failing to load a verifier indicates that something is really, really
+		// invalid about the public key; prefer to fail even if the signature might be
+		// valid with other keys, so that users fix their fallback keys before they need them.
+		verifier, err := sigstoreSignature.LoadVerifier(key, sigstoreHarcodedHashAlgorithm)
 		if err != nil {
 			return nil, err
 		}
@@ -196,19 +196,18 @@ func verifySigstorePayloadBlobSignature(publicKeys []crypto.PublicKey, unverifie
 		// which seems to be not used by anything. So we don’t bother.
 		err = verifier.VerifySignature(bytes.NewReader(unverifiedSignature), bytes.NewReader(unverifiedPayload))
 		if err == nil {
-			return pk, nil
+			return key, nil
 		}
 
-		signatureErrMsgs = append(signatureErrMsgs, fmt.Sprintf("%v", err))
+		failures = append(failures, err.Error())
 	}
 
-	// at this point we must have failed to verify the signature with every key
-	// => there must be at least one error
-	if len(signatureErrMsgs) == 0 {
+	if len(failures) == 0 {
+		// Coverage: We have checked there is at least one public key, any success causes an early return,
+		// and any failure adds an entry to failures => there must be at least one error
 		return nil, fmt.Errorf("Internal error: signature verification failed but no errors have been recorded")
 	}
-
-	return nil, NewInvalidSignatureError("cryptographic signature verification failed: " + strings.Join(signatureErrMsgs, ", "))
+	return nil, NewInvalidSignatureError("cryptographic signature verification failed: " + strings.Join(failures, ", "))
 }
 
 // VerifySigstorePayload verifies unverifiedBase64Signature of unverifiedPayload was correctly created by any of the public keys in publicKeys, and that its principal components

@@ -221,7 +221,7 @@ func VerifySigstorePayload(publicKeys []crypto.PublicKey, unverifiedPayload []by
 		return nil, nil, NewInvalidSignatureError(fmt.Sprintf("base64 decoding: %v", err))
 	}
 
-	pk, err := verifySigstorePayloadBlobSignature(publicKeys, unverifiedPayload, unverifiedSignature)
+	publicKey, err := verifySigstorePayloadBlobSignature(publicKeys, unverifiedPayload, unverifiedSignature)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -231,12 +231,6 @@ func VerifySigstorePayload(publicKeys []crypto.PublicKey, unverifiedPayload []by
 		return nil, nil, err
 	}
 
-	// At this point we know that the signature has verified and now
-	// we can check the sigstore rules.
-	// The rules are independent of the individual public keys, so
-	// if any of them fail, we just return their error directly as
-	// the user won't really care that one of the public keys didn't
-	// verify this signature.
 	if err := rules.ValidateSignedDockerManifestDigest(unmatchedPayload.untrustedDockerManifestDigest); err != nil {
 		return nil, nil, err
 	}
@@ -246,5 +240,5 @@ func VerifySigstorePayload(publicKeys []crypto.PublicKey, unverifiedPayload []by
 	}
 
 	// SigstorePayloadAcceptanceRules have accepted this value.
-	return &unmatchedPayload, pk, nil
+	return &unmatchedPayload, publicKey, nil
 }

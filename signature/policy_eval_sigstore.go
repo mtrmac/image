@@ -86,7 +86,7 @@ func (pr *prSigstoreSigned) prepareTrustRoot() (*sigstoreSignedTrustRoot, error)
 		keyPaths = pr.KeyPaths
 	}
 
-	if pr.KeyData != nil && len(pr.KeyData) > 0 {
+	if pr.KeyData != nil {
 		keyDatas = [][]byte{pr.KeyData}
 	} else {
 		keyDatas = pr.KeyDatas

@@ -228,7 +228,7 @@ func VerifySigstorePayload(publicKeys []crypto.PublicKey, unverifiedPayload []by
 
 	var unmatchedPayload UntrustedSigstorePayload
 	if err := json.Unmarshal(unverifiedPayload, &unmatchedPayload); err != nil {
-		return nil, nil, err
+		return nil, nil, NewInvalidSignatureError(err.Error())
 	}
 
 	if err := rules.ValidateSignedDockerManifestDigest(unmatchedPayload.untrustedDockerManifestDigest); err != nil {

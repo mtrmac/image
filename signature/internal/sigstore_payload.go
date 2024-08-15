@@ -182,19 +182,25 @@ func verifySigstorePayloadBlobSignature(publicKeys []crypto.PublicKey, unverifie
 		return nil, fmt.Errorf("Need at least one public key to verify the sigstore payload, but got 0")
 	}
 
-	failures := make([]string, 0, len(publicKeys))
-	for _, key := range publicKeys {
+	verifiers := make([]sigstoreSignature.Verifier, len(publicKeys))
+	for i, key := range publicKeys {
 		// Failing to load a verifier indicates that something is really, really
 		// invalid about the public key; prefer to fail even if the signature might be
 		// valid with other keys, so that users fix their fallback keys before they need them.
+		// For that purpose, we even initialize all verifiers before trying to validate the signatuyre
+		// with any key.
 		verifier, err := sigstoreSignature.LoadVerifier(key, sigstoreHarcodedHashAlgorithm)
 		if err != nil {
 			return nil, err
 		}
+		verifiers[i] = verifier
+	}
 
+	failures := make([]string, 0, len(publicKeys))
+	for i, key := range publicKeys {
 		// github.com/sigstore/cosign/pkg/cosign.verifyOCISignature uses signatureoptions.WithContext(),
 		// which seems to be not used by anything. So we don’t bother.
-		err = verifier.VerifySignature(bytes.NewReader(unverifiedSignature), bytes.NewReader(unverifiedPayload))
+		err := verifiers[i].VerifySignature(bytes.NewReader(unverifiedSignature), bytes.NewReader(unverifiedPayload))
 		if err == nil {
 			return key, nil
 		}

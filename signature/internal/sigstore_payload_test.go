@@ -304,6 +304,7 @@ func TestVerifySigstorePayload(t *testing.T) {
 	for _, invalidPublicKeys := range [][]crypto.PublicKey{
 		{struct{}{}},            // A single invalid key
 		{struct{}{}, publicKey}, // An invalid key, followed by a matching key
+		{publicKey, struct{}{}}, // A matching key, but the configuration also includes an invalid key
 	} {
 		recorded = acceptanceData{}
 		res, key, err = VerifySigstorePayload(invalidPublicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)

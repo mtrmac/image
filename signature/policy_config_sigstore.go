@@ -177,7 +177,7 @@ var _ json.Unmarshaler = (*prSigstoreSigned)(nil)
 func (pr *prSigstoreSigned) UnmarshalJSON(data []byte) error {
 	*pr = prSigstoreSigned{}
 	var tmp prSigstoreSigned
-	var gotKeyPath, gotKeyData, gotFulcio, gotRekorPublicKeyPath, gotRekorPublicKeyData bool
+	var gotKeyPath, gotKeyPaths, gotKeyData, gotKeyDatas, gotFulcio, gotRekorPublicKeyPath, gotRekorPublicKeyData bool
 	var fulcio prSigstoreSignedFulcio
 	var signedIdentity json.RawMessage
 	if err := internal.ParanoidUnmarshalJSONObject(data, func(key string) any {
@@ -187,9 +187,15 @@ func (pr *prSigstoreSigned) UnmarshalJSON(data []byte) error {
 		case "keyPath":
 			gotKeyPath = true
 			return &tmp.KeyPath
+		case "keyPaths":
+			gotKeyPaths = true
+			return &tmp.KeyPaths
 		case "keyData":
 			gotKeyData = true
 			return &tmp.KeyData
+		case "keyDatas":
+			gotKeyDatas = true
+			return &tmp.KeyDatas
 		case "fulcio":
 			gotFulcio = true
 			return &fulcio
@@ -225,8 +231,14 @@ func (pr *prSigstoreSigned) UnmarshalJSON(data []byte) error {
 	if gotKeyPath {
 		opts = append(opts, PRSigstoreSignedWithKeyPath(tmp.KeyPath))
 	}
+	if gotKeyPaths {
+		opts = append(opts, PRSigstoreSignedWithKeyPaths(tmp.KeyPaths))
+	}
 	if gotKeyData {
 		opts = append(opts, PRSigstoreSignedWithKeyData(tmp.KeyData))
+	}
+	if gotKeyDatas {
+		opts = append(opts, PRSigstoreSignedWithKeyDatas(tmp.KeyDatas))
 	}
 	if gotFulcio {
 		opts = append(opts, PRSigstoreSignedWithFulcio(&fulcio))

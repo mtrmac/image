@@ -314,10 +314,14 @@ func TestPRSigstoreSignedUnmarshalJSON(t *testing.T) {
 			func(v mSA) { v["type"] = "this is invalid" },
 			// Extra top-level sub-object
 			func(v mSA) { v["unexpected"] = 1 },
-			// All of "keyPath" and "keyData", and "fulcio" is missing
+			// All of "keyPath", "keyPaths", "keyData", "keyDatas", and "fulcio" is missing
 			func(v mSA) { delete(v, "keyData") },
 			// Both "keyPath" and "keyData" is present
 			func(v mSA) { v["keyPath"] = "/foo/bar" },
+			// Both "keyPaths" and "keyData" is present
+			func(v mSA) { v["keyPaths"] = []string{"/foo/bar", "/foo/baz"} },
+			// Both "keyData" and "keyDatas" is present
+			func(v mSA) { v["keyDatas"] = [][]byte{[]byte("abc"), []byte("def")} },
 			// Both "keyData" and "fulcio" is present
 			func(v mSA) {
 				v["fulcio"] = mSA{
@@ -328,14 +332,22 @@ func TestPRSigstoreSignedUnmarshalJSON(t *testing.T) {
 			},
 			// Invalid "keyPath" field
 			func(v mSA) { delete(v, "keyData"); v["keyPath"] = 1 },
+			// Invalid "keyPaths" field
+			func(v mSA) { delete(v, "keyData"); v["keyPaths"] = 1 },
+			func(v mSA) { delete(v, "keyData"); v["keyPaths"] = mSA{} },
+			func(v mSA) { delete(v, "keyData"); v["keyPaths"] = []string{} },
 			// Invalid "keyData" field
 			func(v mSA) { v["keyData"] = 1 },
 			func(v mSA) { v["keyData"] = "this is invalid base64" },
+			// Invalid "keyDatas" field
+			func(v mSA) { delete(v, "keyData"); v["keyDatas"] = 1 },
+			func(v mSA) { delete(v, "keyData"); v["keyDatas"] = mSA{} },
+			func(v mSA) { delete(v, "keyData"); v["keyDatas"] = [][]byte{} },
 			// Invalid "fulcio" field
-			func(v mSA) { v["fulcio"] = 1 },
-			func(v mSA) { v["fulcio"] = mSA{} },
+			func(v mSA) { delete(v, "keyData"); v["fulcio"] = 1 },
+			func(v mSA) { delete(v, "keyData"); v["fulcio"] = mSA{} },
 			// "fulcio" is explicit nil
-			func(v mSA) { v["fulcio"] = nil },
+			func(v mSA) { delete(v, "keyData"); v["fulcio"] = nil },
 			// Both "rekorKeyPath" and "rekorKeyData" is present
 			func(v mSA) {
 				v["rekorPublicKeyPath"] = "/foo/baz"
@@ -354,7 +366,7 @@ func TestPRSigstoreSignedUnmarshalJSON(t *testing.T) {
 		duplicateFields: []string{"type", "keyData", "signedIdentity"},
 	}
 	keyDataTests.run(t)
-	// Test keyPath-specific duplicate fields
+	// Test keyPath and keyPath-specific duplicate fields
 	policyJSONUmarshallerTests[PolicyRequirement]{
 		newDest: func() json.Unmarshaler { return &prSigstoreSigned{} },
 		newValidObject: func() (PolicyRequirement, error) {
@@ -362,6 +374,30 @@ func TestPRSigstoreSignedUnmarshalJSON(t *testing.T) {
 		},
 		otherJSONParser: newPolicyRequirementFromJSON,
 		duplicateFields: []string{"type", "keyPath", "signedIdentity"},
+	}.run(t)
+	// Test keyPaths and keyPaths-specific duplicate fields
+	policyJSONUmarshallerTests[PolicyRequirement]{
+		newDest: func() json.Unmarshaler { return &prSigstoreSigned{} },
+		newValidObject: func() (PolicyRequirement, error) {
+			return NewPRSigstoreSigned(
+				PRSigstoreSignedWithKeyPaths([]string{"/foo/bar", "/foo/baz"}),
+				PRSigstoreSignedWithSignedIdentity(NewPRMMatchRepoDigestOrExact()),
+			)
+		},
+		otherJSONParser: newPolicyRequirementFromJSON,
+		duplicateFields: []string{"type", "keyPaths", "signedIdentity"},
+	}.run(t)
+	// Test keyDatas and keyDatas-specific duplicate fields
+	policyJSONUmarshallerTests[PolicyRequirement]{
+		newDest: func() json.Unmarshaler { return &prSigstoreSigned{} },
+		newValidObject: func() (PolicyRequirement, error) {
+			return NewPRSigstoreSigned(
+				PRSigstoreSignedWithKeyDatas([][]byte{[]byte("abc"), []byte("def")}),
+				PRSigstoreSignedWithSignedIdentity(NewPRMMatchRepoDigestOrExact()),
+			)
+		},
+		otherJSONParser: newPolicyRequirementFromJSON,
+		duplicateFields: []string{"type", "keyDatas", "signedIdentity"},
 	}.run(t)
 	// Test Fulcio and rekorPublicKeyPath duplicate fields
 	testFulcio, err := NewPRSigstoreSignedFulcio(

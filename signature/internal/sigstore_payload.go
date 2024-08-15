@@ -194,12 +194,12 @@ func verifySigstorePayloadBlobSignature(publicKeys []crypto.PublicKey, unverifie
 
 		// github.com/sigstore/cosign/pkg/cosign.verifyOCISignature uses signatureoptions.WithContext(),
 		// which seems to be not used by anything. So we don’t bother.
-		if err := verifier.VerifySignature(bytes.NewReader(unverifiedSignature), bytes.NewReader(unverifiedPayload)); err != nil {
-			signatureErrMsgs = append(signatureErrMsgs, fmt.Sprintf("%v", err))
-			continue
+		err = verifier.VerifySignature(bytes.NewReader(unverifiedSignature), bytes.NewReader(unverifiedPayload))
+		if err == nil {
+			return pk, nil
 		}
 
-		return pk, nil
+		signatureErrMsgs = append(signatureErrMsgs, fmt.Sprintf("%v", err))
 	}
 
 	// at this point we must have failed to verify the signature with every key

@@ -316,7 +316,7 @@ used with `exactReference` or `exactRepository`.
 
 This requirement requires an image to be signed using a sigstore signature with an expected identity and key.
 
-```json
+```js
 {
     "type":    "sigstoreSigned",
     "keyPath": "/path/to/local/public/key/file",
@@ -339,8 +339,8 @@ Exactly one of `keyPath`, `keyPaths`, `keyData`, `keyDatas` and `fulcio` must be
 If `keyPath` or `keyData` is present, it contains a sigstore public key.
 Only signatures made by this key are accepted.
 
-If `keyPaths` or `keyDatas` is present, it contains sigstore public keys that
-sign the images. Signatures from any key in the list is accepted.
+If `keyPaths` or `keyDatas` is present, it contains sigstore public keys.
+Only signatures made by any key in the list are accepted.
 
 If `fulcio` is present, the signature must be based on a Fulcio-issued certificate.
 One of `caPath` and `caData` must be specified, containing the public key of the Fulcio instance.

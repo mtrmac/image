@@ -47,7 +47,9 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			expected: prSigstoreSigned{
 				prCommon:       prCommon{prTypeSigstoreSigned},
 				KeyPath:        testKeyPath,
+				KeyPaths:       nil,
 				KeyData:        nil,
+				KeyDatas:       nil,
 				Fulcio:         nil,
 				SignedIdentity: testIdentity,
 			},
@@ -59,7 +61,10 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			},
 			expected: prSigstoreSigned{
 				prCommon:       prCommon{prTypeSigstoreSigned},
+				KeyPath:        "",
 				KeyPaths:       []string{testKeyPath, testKeyPath2},
+				KeyData:        nil,
+				KeyDatas:       nil,
 				Fulcio:         nil,
 				SignedIdentity: testIdentity,
 			},
@@ -72,7 +77,9 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			expected: prSigstoreSigned{
 				prCommon:       prCommon{prTypeSigstoreSigned},
 				KeyPath:        "",
+				KeyPaths:       nil,
 				KeyData:        testKeyData,
+				KeyDatas:       nil,
 				Fulcio:         nil,
 				SignedIdentity: testIdentity,
 			},
@@ -85,6 +92,8 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			expected: prSigstoreSigned{
 				prCommon:       prCommon{prTypeSigstoreSigned},
 				KeyPath:        "",
+				KeyPaths:       nil,
+				KeyData:        nil,
 				KeyDatas:       [][]byte{testKeyData, testKeyData2},
 				Fulcio:         nil,
 				SignedIdentity: testIdentity,
@@ -99,7 +108,9 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			expected: prSigstoreSigned{
 				prCommon:       prCommon{prTypeSigstoreSigned},
 				KeyPath:        "",
+				KeyPaths:       nil,
 				KeyData:        nil,
+				KeyDatas:       nil,
 				Fulcio:         testFulcio,
 				SignedIdentity: testIdentity,
 			},
@@ -173,31 +184,37 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			PRSigstoreSignedWithKeyPath(testKeyPath + "1"),
 			PRSigstoreSignedWithSignedIdentity(testIdentity),
 		},
-		{ // empty keypaths
+		{ // Empty keypaths
 			PRSigstoreSignedWithKeyPaths([]string{}),
+			PRSigstoreSignedWithSignedIdentity(testIdentity),
+		},
+		{ // Duplicate keyPaths
+			PRSigstoreSignedWithKeyPaths([]string{testKeyPath, testKeyPath2}),
+			PRSigstoreSignedWithKeyPaths([]string{testKeyPath + "1", testKeyPath2 + "1"}),
+			PRSigstoreSignedWithSignedIdentity(testIdentity),
+		},
+		{ // keyPath & keyPaths both set
+			PRSigstoreSignedWithKeyPath("foobar"),
+			PRSigstoreSignedWithKeyPaths([]string{"foobar"}),
+			PRSigstoreSignedWithSignedIdentity(testIdentity),
 		},
 		{ // Duplicate keyData
 			PRSigstoreSignedWithKeyData(testKeyData),
 			PRSigstoreSignedWithKeyData([]byte("def")),
 			PRSigstoreSignedWithSignedIdentity(testIdentity),
 		},
-		{ // empty keydatas
+		{ // Empty keyDatas
 			PRSigstoreSignedWithKeyDatas([][]byte{}),
-		},
-		{ // Duplicate keyData
-			PRSigstoreSignedWithKeyPath(testKeyPath),
-			PRSigstoreSignedWithRekorPublicKeyData(testRekorKeyData),
-			PRSigstoreSignedWithRekorPublicKeyData([]byte("def")),
 			PRSigstoreSignedWithSignedIdentity(testIdentity),
 		},
-		{ // keyPath & keyPaths both set
-			PRSigstoreSignedWithKeyPaths([]string{"foobar"}),
+		{ // Duplicate keyDatas
+			PRSigstoreSignedWithKeyDatas([][]byte{testKeyData, testKeyData2}),
+			PRSigstoreSignedWithKeyDatas([][]byte{append(testKeyData, 'a'), append(testKeyData2, 'a')}),
 			PRSigstoreSignedWithSignedIdentity(testIdentity),
-			PRSigstoreSignedWithKeyPath("foobar"),
 		},
 		{ // keyData & keyDatas both set
-			PRSigstoreSignedWithKeyDatas([][]byte{[]byte("foo")}),
 			PRSigstoreSignedWithKeyData([]byte("bar")),
+			PRSigstoreSignedWithKeyDatas([][]byte{[]byte("foo")}),
 			PRSigstoreSignedWithSignedIdentity(testIdentity),
 		},
 		{ // Duplicate fulcio
@@ -220,6 +237,12 @@ func TestNewPRSigstoreSigned(t *testing.T) {
 			PRSigstoreSignedWithKeyPath(testKeyPath),
 			PRSigstoreSignedWithRekorPublicKeyPath(testRekorKeyPath),
 			PRSigstoreSignedWithRekorPublicKeyPath(testRekorKeyPath + "1"),
+			PRSigstoreSignedWithSignedIdentity(testIdentity),
+		},
+		{ // Duplicate rekorKeyData
+			PRSigstoreSignedWithKeyPath(testKeyPath),
+			PRSigstoreSignedWithRekorPublicKeyData(testRekorKeyData),
+			PRSigstoreSignedWithRekorPublicKeyData([]byte("def")),
 			PRSigstoreSignedWithSignedIdentity(testIdentity),
 		},
 		{ // Missing signedIdentity

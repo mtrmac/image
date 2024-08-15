@@ -28,6 +28,9 @@ func PRSigstoreSignedWithKeyPaths(keyPaths []string) PRSigstoreSignedOption {
 		if pr.KeyPaths != nil {
 			return errors.New(`"keyPaths" already specified`)
 		}
+		if len(keyPaths) == 0 {
+			return errors.New(`"keyPaths" contains no entries`)
+		}
 		pr.KeyPaths = keyPaths
 		return nil
 	}
@@ -49,6 +52,9 @@ func PRSigstoreSignedWithKeyDatas(keyDatas [][]byte) PRSigstoreSignedOption {
 	return func(pr *prSigstoreSigned) error {
 		if pr.KeyDatas != nil {
 			return errors.New(`"keyDatas" already specified`)
+		}
+		if len(keyDatas) == 0 {
+			return errors.New(`"keyDatas" contains no entries`)
 		}
 		pr.KeyDatas = keyDatas
 		return nil
@@ -114,19 +120,18 @@ func newPRSigstoreSigned(options ...PRSigstoreSignedOption) (*prSigstoreSigned, 
 	if res.KeyPath != "" {
 		keySources++
 	}
-	if len(res.KeyPaths) > 0 {
+	if res.KeyPaths != nil {
 		keySources++
 	}
 	if res.KeyData != nil {
 		keySources++
 	}
-	if len(res.KeyDatas) > 0 {
+	if res.KeyDatas != nil {
 		keySources++
 	}
 	if res.Fulcio != nil {
 		keySources++
 	}
-
 	if keySources != 1 {
 		return nil, InvalidPolicyFormatError("exactly one of keyPath, keyPaths, keyData, keyDatas and fulcio must be specified")
 	}

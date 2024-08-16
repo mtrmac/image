@@ -134,7 +134,7 @@ func TestPRSigstoreSignedPrepareTrustRoot(t *testing.T) {
 		assert.NotNil(t, res.publicKeys)
 		//assert.Len(t, res.publicKeys, 1)
 		assert.Nil(t, res.fulcio)
-		assert.Nil(t, res.rekorPublicKey)
+		assert.Nil(t, res.rekorPublicKeys)
 	}
 	// Success with Fulcio
 	pr, err := newPRSigstoreSigned(
@@ -147,7 +147,7 @@ func TestPRSigstoreSignedPrepareTrustRoot(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, res.publicKeys, 0)
 	assert.NotNil(t, res.fulcio)
-	assert.NotNil(t, res.rekorPublicKey)
+	assert.Len(t, res.rekorPublicKeys, 1)
 	// Success with Rekor public key
 	for _, c := range [][]PRSigstoreSignedOption{
 		{
@@ -177,7 +177,7 @@ func TestPRSigstoreSignedPrepareTrustRoot(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res.publicKeys)
 		assert.Nil(t, res.fulcio)
-		assert.NotNil(t, res.rekorPublicKey)
+		assert.Len(t, res.rekorPublicKeys, 1)
 	}
 
 	// Failure

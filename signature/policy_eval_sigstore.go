@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/image/v5/internal/private"
@@ -18,7 +19,6 @@ import (
 	"github.com/containers/image/v5/signature/internal"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
-	"github.com/sirupsen/logrus"
 )
 
 // configBytesSources contains configuration fields which may result in one or more []byte values
@@ -199,6 +199,7 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 				return sarRejected, fmt.Errorf("missing %s annotation", signature.SigstoreSETAnnotationKey)
 			}
 
+			var rekorFailures []string
 			for i := range trustRoot.publicKeys {
 				// We could use publicKeyPEM directly, but let’s re-marshal to avoid inconsistencies.
 				// FIXME: We could just generate DER instead of the full PEM text
@@ -206,21 +207,23 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 				if err != nil {
 					// Coverage: The key was loaded from a PEM format, so it’s unclear how this could fail.
 					// (PEM is not essential, MarshalPublicKeyToPEM can only fail if marshaling to ASN1.DER fails.)
-					logrus.Errorf("re-marshaling public key to PEM: %q", err)
-					continue
+					return sarRejected, fmt.Errorf("re-marshaling public key to PEM: %w", err)
 				}
 				// We don’t care about the Rekor timestamp, just about log presence.
-				if _, err := internal.VerifyRekorSET(trustRoot.rekorPublicKey, []byte(untrustedSET), recreatedPublicKeyPEM, untrustedBase64Signature, untrustedPayload); err != nil {
-					logrus.Errorf("%q", err)
-					continue
+				_, err = internal.VerifyRekorSET(trustRoot.rekorPublicKey, []byte(untrustedSET), recreatedPublicKeyPEM, untrustedBase64Signature, untrustedPayload)
+				if err == nil {
+					publicKeys = append(publicKeys, trustRoot.publicKeys[i])
+					break // The SET can only accept one public key entry, so if we found one, the rest either doesn’t match or is a duplicate
 				}
-				publicKeys = append(publicKeys, trustRoot.publicKeys[i])
+				rekorFailures = append(rekorFailures, err.Error())
 			}
-
 			if len(publicKeys) == 0 {
-				return sarRejected, errors.New("No public key verified against the RekorSET")
+				if len(rekorFailures) == 0 {
+					// Coverage: We have ensured that len(trustRoot.publicKeys) != 0, when nothing succeeds, there must be at least one failure.
+					return sarRejected, errors.New(`Internal inconsistency: Rekor SET did not match any key but we have no failures.`)
+				}
+				return sarRejected, internal.NewInvalidSignatureError(fmt.Sprintf("No public key verified against the RekorSET: %s", strings.Join(rekorFailures, ", ")))
 			}
-
 		} else {
 			publicKeys = trustRoot.publicKeys
 		}

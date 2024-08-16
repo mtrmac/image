@@ -44,9 +44,8 @@ func TestGenerateKeyPair(t *testing.T) {
 	// but that is private.
 	publicKey, err := cryptoutils.UnmarshalPEMToPublicKey(keyPair.PublicKey)
 	require.NoError(t, err)
-	publicKeys := []crypto.PublicKey{publicKey}
 
-	_, err = internal.VerifySigstorePayload(publicKeys, sig.UntrustedPayload(),
+	_, err = internal.VerifySigstorePayload([]crypto.PublicKey{publicKey}, sig.UntrustedPayload(),
 		sig.UntrustedAnnotations()[signature.SigstoreSignatureAnnotationKey],
 		internal.SigstorePayloadAcceptanceRules{
 			ValidateSignedDockerReference: func(ref string) error {

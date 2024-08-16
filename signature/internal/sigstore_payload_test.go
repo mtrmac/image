@@ -263,9 +263,8 @@ func TestVerifySigstorePayload(t *testing.T) {
 	} {
 		wanted = signatureData
 		recorded = acceptanceData{}
-		res, key, err := VerifySigstorePayload(publicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
+		res, err := VerifySigstorePayload(publicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
 		require.NoError(t, err)
-		assert.Equal(t, publicKey, key)
 		assert.Equal(t, res, &UntrustedSigstorePayload{
 			untrustedDockerManifestDigest: TestSigstoreManifestDigest,
 			untrustedDockerReference:      TestSigstoreSignatureReference,
@@ -284,19 +283,17 @@ func TestVerifySigstorePayload(t *testing.T) {
 		cryptoBase64Sig[:len(cryptoBase64Sig)-1], // Truncated base64 data
 	} {
 		recorded = acceptanceData{}
-		res, key, err := VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), invalidBase64Sig, recordingRules)
+		res, err := VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), invalidBase64Sig, recordingRules)
 		assert.Error(t, err)
 		assert.Nil(t, res)
-		assert.Nil(t, key)
 		assert.Equal(t, acceptanceData{}, recorded)
 	}
 
 	// No public keys
 	recorded = acceptanceData{}
-	res, key, err := VerifySigstorePayload([]crypto.PublicKey{}, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
+	res, err := VerifySigstorePayload([]crypto.PublicKey{}, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
 	assert.Error(t, err)
 	assert.Nil(t, res)
-	assert.Nil(t, key)
 	assert.Equal(t, acceptanceData{}, recorded)
 
 	// Invalid verifier:
@@ -307,10 +304,9 @@ func TestVerifySigstorePayload(t *testing.T) {
 		{publicKey, struct{}{}}, // A matching key, but the configuration also includes an invalid key
 	} {
 		recorded = acceptanceData{}
-		res, key, err = VerifySigstorePayload(invalidPublicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
+		res, err = VerifySigstorePayload(invalidPublicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
 		assert.Error(t, err)
 		assert.Nil(t, res)
-		assert.Nil(t, key)
 		assert.Equal(t, acceptanceData{}, recorded)
 	}
 
@@ -323,10 +319,9 @@ func TestVerifySigstorePayload(t *testing.T) {
 		append(bytes.Clone(validSignatureBytes), validSignatureBytes...),
 	} {
 		recorded = acceptanceData{}
-		res, key, err = VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), base64.StdEncoding.EncodeToString(invalidSig), recordingRules)
+		res, err = VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), base64.StdEncoding.EncodeToString(invalidSig), recordingRules)
 		assert.Error(t, err)
 		assert.Nil(t, res)
-		assert.Nil(t, key)
 		assert.Equal(t, acceptanceData{}, recorded)
 	}
 
@@ -336,37 +331,33 @@ func TestVerifySigstorePayload(t *testing.T) {
 		{publicKey2, publicKey2},
 	} {
 		recorded = acceptanceData{}
-		res, key, err = VerifySigstorePayload(nonmatchingPublicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
+		res, err = VerifySigstorePayload(nonmatchingPublicKeys, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
 		assert.Error(t, err)
 		assert.Nil(t, res)
-		assert.Nil(t, key)
 		assert.Equal(t, acceptanceData{}, recorded)
 	}
 
 	// Valid signature of non-JSON
 	recorded = acceptanceData{}
-	res, key, err = VerifySigstorePayload(singlePublicKey, []byte("&"), "MEUCIARnnxZQPALBfqkB4aNAYXad79Qs6VehcrgIeZ8p7I2FAiEAzq2HXwXlz1iJeh+ucUR3L0zpjynQk6Rk0+/gXYp49RU=", recordingRules)
+	res, err = VerifySigstorePayload(singlePublicKey, []byte("&"), "MEUCIARnnxZQPALBfqkB4aNAYXad79Qs6VehcrgIeZ8p7I2FAiEAzq2HXwXlz1iJeh+ucUR3L0zpjynQk6Rk0+/gXYp49RU=", recordingRules)
 	assert.Error(t, err)
 	assert.Nil(t, res)
-	assert.Nil(t, key)
 	assert.Equal(t, acceptanceData{}, recorded)
 
 	// Valid signature of an unacceptable JSON
 	recorded = acceptanceData{}
-	res, key, err = VerifySigstorePayload(singlePublicKey, []byte("{}"), "MEUCIQDkySOBGxastVP0+koTA33NH5hXjwosFau4rxTPN6g48QIgb7eWKkGqfEpHMM3aT4xiqyP/170jEkdFuciuwN4mux4=", recordingRules)
+	res, err = VerifySigstorePayload(singlePublicKey, []byte("{}"), "MEUCIQDkySOBGxastVP0+koTA33NH5hXjwosFau4rxTPN6g48QIgb7eWKkGqfEpHMM3aT4xiqyP/170jEkdFuciuwN4mux4=", recordingRules)
 	assert.Error(t, err)
 	assert.Nil(t, res)
-	assert.Nil(t, key)
 	assert.Equal(t, acceptanceData{}, recorded)
 
 	// Valid signature with a wrong manifest digest: asked for signedDockerManifestDigest
 	wanted = signatureData
 	wanted.signedDockerManifestDigest = "invalid digest"
 	recorded = acceptanceData{}
-	res, key, err = VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
+	res, err = VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
 	assert.Error(t, err)
 	assert.Nil(t, res)
-	assert.Nil(t, key)
 	assert.Equal(t, acceptanceData{
 		signedDockerManifestDigest: signatureData.signedDockerManifestDigest,
 	}, recorded)
@@ -375,9 +366,8 @@ func TestVerifySigstorePayload(t *testing.T) {
 	wanted = signatureData
 	wanted.signedDockerReference = "unexpected docker reference"
 	recorded = acceptanceData{}
-	res, key, err = VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
+	res, err = VerifySigstorePayload(singlePublicKey, sigstoreSig.UntrustedPayload(), cryptoBase64Sig, recordingRules)
 	assert.Error(t, err)
 	assert.Nil(t, res)
-	assert.Nil(t, key)
 	assert.Equal(t, signatureData, recorded)
 }

@@ -155,34 +155,32 @@ func (pr *prSigstoreSigned) isSignatureAuthorAccepted(ctx context.Context, image
 	return sarRejected, nil, errors.New("isSignatureAuthorAccepted is not implemented for sigstore")
 }
 
-func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image private.UnparsedImage, sig signature.Sigstore) (signatureKeyAcceptanceResult, error) {
-	rejectedRes := signatureKeyAcceptanceResult{sarRejected, nil}
-
+func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image private.UnparsedImage, sig signature.Sigstore) (signatureAcceptanceResult, error) {
 	// FIXME: move this to per-context initialization
 	trustRoot, err := pr.prepareTrustRoot()
 	if err != nil {
-		return rejectedRes, err
+		return sarRejected, err
 	}
 
 	untrustedAnnotations := sig.UntrustedAnnotations()
 	untrustedBase64Signature, ok := untrustedAnnotations[signature.SigstoreSignatureAnnotationKey]
 	if !ok {
-		return rejectedRes, fmt.Errorf("missing %s annotation", signature.SigstoreSignatureAnnotationKey)
+		return sarRejected, fmt.Errorf("missing %s annotation", signature.SigstoreSignatureAnnotationKey)
 	}
 	untrustedPayload := sig.UntrustedPayload()
 
 	var publicKeys []crypto.PublicKey
 	switch {
 	case len(trustRoot.publicKeys) > 0 && trustRoot.fulcio != nil: // newPRSigstoreSigned rejects such combinations.
-		return rejectedRes, errors.New("Internal inconsistency: Both a public key and Fulcio CA specified")
+		return sarRejected, errors.New("Internal inconsistency: Both a public key and Fulcio CA specified")
 	case len(trustRoot.publicKeys) == 0 && trustRoot.fulcio == nil: // newPRSigstoreSigned rejects such combinations.
-		return rejectedRes, errors.New("Internal inconsistency: Neither a public key nor a Fulcio CA specified")
+		return sarRejected, errors.New("Internal inconsistency: Neither a public key nor a Fulcio CA specified")
 
 	case len(trustRoot.publicKeys) > 0:
 		if trustRoot.rekorPublicKey != nil {
 			untrustedSET, ok := untrustedAnnotations[signature.SigstoreSETAnnotationKey]
 			if !ok { // For user convenience; passing an empty []byte to VerifyRekorSet should work.
-				return rejectedRes, fmt.Errorf("missing %s annotation", signature.SigstoreSETAnnotationKey)
+				return sarRejected, fmt.Errorf("missing %s annotation", signature.SigstoreSETAnnotationKey)
 			}
 
 			for i := range trustRoot.publicKeys {
@@ -204,7 +202,7 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 			}
 
 			if len(publicKeys) == 0 {
-				return rejectedRes, errors.New("No public key verified against the RekorSET")
+				return sarRejected, errors.New("No public key verified against the RekorSET")
 			}
 
 		} else {
@@ -213,15 +211,15 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 
 	case trustRoot.fulcio != nil:
 		if trustRoot.rekorPublicKey == nil { // newPRSigstoreSigned rejects such combinations.
-			return rejectedRes, errors.New("Internal inconsistency: Fulcio CA specified without a Rekor public key")
+			return sarRejected, errors.New("Internal inconsistency: Fulcio CA specified without a Rekor public key")
 		}
 		untrustedSET, ok := untrustedAnnotations[signature.SigstoreSETAnnotationKey]
 		if !ok { // For user convenience; passing an empty []byte to VerifyRekorSet should correctly reject it anyway.
-			return rejectedRes, fmt.Errorf("missing %s annotation", signature.SigstoreSETAnnotationKey)
+			return sarRejected, fmt.Errorf("missing %s annotation", signature.SigstoreSETAnnotationKey)
 		}
 		untrustedCert, ok := untrustedAnnotations[signature.SigstoreCertificateAnnotationKey]
 		if !ok { // For user convenience; passing an empty []byte to VerifyRekorSet should correctly reject it anyway.
-			return rejectedRes, fmt.Errorf("missing %s annotation", signature.SigstoreCertificateAnnotationKey)
+			return sarRejected, fmt.Errorf("missing %s annotation", signature.SigstoreCertificateAnnotationKey)
 		}
 		var untrustedIntermediateChainBytes []byte
 		if untrustedIntermediateChain, ok := untrustedAnnotations[signature.SigstoreIntermediateCertificateChainAnnotationKey]; ok {
@@ -230,17 +228,17 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 		pk, err := verifyRekorFulcio(trustRoot.rekorPublicKey, trustRoot.fulcio,
 			[]byte(untrustedSET), []byte(untrustedCert), untrustedIntermediateChainBytes, untrustedBase64Signature, untrustedPayload)
 		if err != nil {
-			return rejectedRes, err
+			return sarRejected, err
 		}
 		publicKeys = []crypto.PublicKey{pk}
 	}
 
 	if len(publicKeys) == 0 {
 		// Coverage: This should never happen, we have already excluded the possibility in the switch above.
-		return rejectedRes, fmt.Errorf("Internal inconsistency: publicKey not set before verifying sigstore payload")
+		return sarRejected, fmt.Errorf("Internal inconsistency: publicKey not set before verifying sigstore payload")
 	}
 
-	signature, signingKey, err := internal.VerifySigstorePayload(publicKeys, untrustedPayload, untrustedBase64Signature, internal.SigstorePayloadAcceptanceRules{
+	signature, _, err := internal.VerifySigstorePayload(publicKeys, untrustedPayload, untrustedBase64Signature, internal.SigstorePayloadAcceptanceRules{
 		ValidateSignedDockerReference: func(ref string) error {
 			if !pr.SignedIdentity.matchesDockerReference(image, ref) {
 				return PolicyRequirementError(fmt.Sprintf("Signature for identity %q is not accepted", ref))
@@ -264,14 +262,14 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 	})
 
 	if err != nil {
-		return rejectedRes, err
+		return sarRejected, err
 
 	}
 	if signature == nil { // A paranoid sanity check that VerifySigstorePayload has returned consistent values
-		return rejectedRes, errors.New("internal error: VerifySigstorePayload succeeded but returned no data") // Coverage: This should never happen.
+		return sarRejected, errors.New("internal error: VerifySigstorePayload succeeded but returned no data") // Coverage: This should never happen.
 	}
 
-	return signatureKeyAcceptanceResult{sarAccepted, signingKey}, nil
+	return sarAccepted, nil
 }
 
 func (pr *prSigstoreSigned) isRunningImageAllowed(ctx context.Context, image private.UnparsedImage) (bool, error) {
@@ -294,7 +292,7 @@ func (pr *prSigstoreSigned) isRunningImageAllowed(ctx context.Context, image pri
 		}
 
 		var reason error
-		switch res, err := pr.isSignatureAccepted(ctx, image, sigstoreSig); res.result {
+		switch res, err := pr.isSignatureAccepted(ctx, image, sigstoreSig); res {
 		case sarAccepted:
 			// One accepted signature is enough.
 			return true, nil
@@ -304,7 +302,7 @@ func (pr *prSigstoreSigned) isRunningImageAllowed(ctx context.Context, image pri
 			// Huh?! This should not happen at all; treat it as any other invalid value.
 			fallthrough
 		default:
-			reason = fmt.Errorf(`Internal error: Unexpected signature verification result %q`, string(res.result))
+			reason = fmt.Errorf(`Internal error: Unexpected signature verification result %q`, string(res))
 		}
 		rejections = append(rejections, reason)
 	}

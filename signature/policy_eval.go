@@ -7,7 +7,6 @@ package signature
 
 import (
 	"context"
-	"crypto"
 	"fmt"
 
 	"github.com/containers/image/v5/internal/private"
@@ -31,12 +30,6 @@ const (
 	sarRejected signatureAcceptanceResult = "sarRejected"
 	sarUnknown  signatureAcceptanceResult = "sarUnknown"
 )
-
-// signatureKeyAcceptanceResult is the principal value returned by isSignatureAccepted.
-type signatureKeyAcceptanceResult struct {
-	result signatureAcceptanceResult
-	pk     crypto.PublicKey
-}
 
 // PolicyRequirement is a rule which must be satisfied by at least one of the signatures of an image.
 // The type is public, but its definition is private.

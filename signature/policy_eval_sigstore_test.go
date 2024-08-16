@@ -277,15 +277,13 @@ func sigstoreSignatureWithModifiedAnnotation(template signature.Sigstore, annota
 }
 
 func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
-	assertAccepted := func(sar signatureKeyAcceptanceResult, err error) {
-		assert.Equal(t, sarAccepted, sar.result)
-		assert.NotNil(t, sar.pk)
+	assertAccepted := func(sar signatureAcceptanceResult, err error) {
+		assert.Equal(t, sarAccepted, sar)
 		assert.NoError(t, err)
 	}
-	assertRejected := func(sar signatureKeyAcceptanceResult, err error) {
+	assertRejected := func(sar signatureAcceptanceResult, err error) {
 		logrus.Errorf("%v", err)
-		assert.Equal(t, sarRejected, sar.result)
-		assert.Nil(t, sar.pk)
+		assert.Equal(t, sarRejected, sar)
 		assert.Error(t, err)
 	}
 
@@ -352,14 +350,10 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 		PRSigstoreSignedWithRekorPublicKeyPath("fixtures/rekor.pub"),
 		PRSigstoreSignedWithSignedIdentity(prm),
 	)
-
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), testKeyRekorImage, testKeyRekorImageSig)
 	require.NoError(t, err)
 	assertAccepted(sar, err)
-	tr, err := pr.prepareTrustRoot()
-	assert.NoError(t, err)
-	assert.Equal(t, sar.pk, tr.publicKeys[1])
 
 	// key+Rekor, missing Rekor SET annotation
 	sar, err = pr.isSignatureAccepted(context.Background(), nil,
@@ -491,10 +485,6 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), testKeyImage, testKeyImageSig)
 	assertAccepted(sar, err)
-	tr, err = pr.prepareTrustRoot()
-	cosignPub := tr.publicKeys[0]
-	require.NoError(t, err)
-	assert.Equal(t, cosignPub, sar.pk)
 
 	pr, err = newPRSigstoreSigned(
 		PRSigstoreSignedWithKeyPaths([]string{"fixtures/cosign2.pub", "fixtures/cosign.pub"}),
@@ -503,7 +493,6 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), testKeyImage, testKeyImageSig)
 	assertAccepted(sar, err)
-	assert.Equal(t, cosignPub, sar.pk)
 
 	pr, err = newPRSigstoreSigned(
 		PRSigstoreSignedWithKeyData(keyData),
@@ -512,7 +501,6 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), testKeyImage, testKeyImageSig)
 	assertAccepted(sar, err)
-	assert.Equal(t, cosignPub, sar.pk)
 
 	pr, err = newPRSigstoreSigned(
 		PRSigstoreSignedWithKeyDatas([][]byte{keyData2, keyData}),
@@ -521,8 +509,6 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), testKeyImage, testKeyImageSig)
 	assertAccepted(sar, err)
-	assert.Equal(t, cosignPub, sar.pk)
-	assert.Equal(t, cosignPub, sar.pk)
 
 	// A signature which does not verify
 	pr, err = newPRSigstoreSigned(
@@ -598,8 +584,6 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), image, sigstoreSignatureFromFile(t, "fixtures/dir-img-cosign-valid-with-tag/signature-1"))
 	assertAccepted(sar, err)
-	assert.Equal(t, cosignPub, sar.pk)
-
 	// - Signatures with a non-matching tag are rejected
 	image = dirImageMock(t, "fixtures/dir-img-cosign-valid-with-tag", "192.168.64.2:5000/skopeo-signed:othertag")
 	pr, err = newPRSigstoreSigned(
@@ -609,7 +593,6 @@ func TestPRrSigstoreSignedIsSignatureAccepted(t *testing.T) {
 	require.NoError(t, err)
 	sar, err = pr.isSignatureAccepted(context.Background(), image, sigstoreSignatureFromFile(t, "fixtures/dir-img-cosign-valid-with-tag/signature-1"))
 	assertRejected(sar, err)
-
 	// - Cosign-created signatures are rejected
 	pr, err = newPRSigstoreSigned(
 		PRSigstoreSignedWithKeyPath("fixtures/cosign.pub"),

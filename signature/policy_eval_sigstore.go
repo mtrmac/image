@@ -200,10 +200,10 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 			}
 
 			var rekorFailures []string
-			for i := range trustRoot.publicKeys {
+			for _, candidatePublicKey := range trustRoot.publicKeys {
 				// We could use publicKeyPEM directly, but let’s re-marshal to avoid inconsistencies.
 				// FIXME: We could just generate DER instead of the full PEM text
-				recreatedPublicKeyPEM, err := cryptoutils.MarshalPublicKeyToPEM(trustRoot.publicKeys[i])
+				recreatedPublicKeyPEM, err := cryptoutils.MarshalPublicKeyToPEM(candidatePublicKey)
 				if err != nil {
 					// Coverage: The key was loaded from a PEM format, so it’s unclear how this could fail.
 					// (PEM is not essential, MarshalPublicKeyToPEM can only fail if marshaling to ASN1.DER fails.)
@@ -212,7 +212,7 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 				// We don’t care about the Rekor timestamp, just about log presence.
 				_, err = internal.VerifyRekorSET(trustRoot.rekorPublicKey, []byte(untrustedSET), recreatedPublicKeyPEM, untrustedBase64Signature, untrustedPayload)
 				if err == nil {
-					publicKeys = append(publicKeys, trustRoot.publicKeys[i])
+					publicKeys = append(publicKeys, candidatePublicKey)
 					break // The SET can only accept one public key entry, so if we found one, the rest either doesn’t match or is a duplicate
 				}
 				rekorFailures = append(rekorFailures, err.Error())

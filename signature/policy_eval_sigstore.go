@@ -27,6 +27,7 @@ type configBytesSources struct {
 	path                      string   // ${prefix}Path: a path to a file containing the data, or ""
 	paths                     []string // ${prefix}Paths: paths to files containing the data, or nil
 	data                      []byte   // ${prefix}Data: a single instance ofhe raw data, or nil
+	datas                     [][]byte // ${prefix}Datas: the raw data, or nil
 }
 
 // loadBytesFromConfigSources ensures at most one of the sources in src is set,
@@ -56,6 +57,10 @@ func loadBytesFromConfigSources(src configBytesSources) ([][]byte, error) {
 	if src.data != nil {
 		sources++
 		data = [][]byte{src.data}
+	}
+	if src.datas != nil {
+		sources++
+		data = src.datas
 	}
 	if sources > 1 {
 		return nil, errors.New(src.inconsistencyErrorMessage)
@@ -102,50 +107,23 @@ type sigstoreSignedTrustRoot struct {
 func (pr *prSigstoreSigned) prepareTrustRoot() (*sigstoreSignedTrustRoot, error) {
 	res := sigstoreSignedTrustRoot{}
 
-	pks := []crypto.PublicKey{}
-	var keyPaths []string
-	var keyDatas [][]byte
-
-	if pr.KeyPath != "" {
-		keyPaths = []string{pr.KeyPath}
-	} else {
-		keyPaths = pr.KeyPaths
+	publicKeyPEMs, err := loadBytesFromConfigSources(configBytesSources{
+		inconsistencyErrorMessage: `Internal inconsistency: more than one of "keyPath", "keyPaths", "keyData", "keyDatas" specified`,
+		path:                      pr.KeyPath,
+		paths:                     pr.KeyPaths,
+		data:                      pr.KeyData,
+		datas:                     pr.KeyDatas,
+	})
+	if err != nil {
+		return nil, err
 	}
-
-	if pr.KeyData != nil {
-		keyDatas = [][]byte{pr.KeyData}
-	} else {
-		keyDatas = pr.KeyDatas
-	}
-
-	if len(keyDatas) > 0 && len(keyPaths) > 0 {
-		return nil, fmt.Errorf("Too many key sources are specified")
-	}
-
-	for _, keyPath := range keyPaths {
-		publicKeyPEM, err := os.ReadFile(keyPath)
-		if err != nil {
-			return nil, err
-		}
-		if publicKeyPEM != nil {
-			pk, err := cryptoutils.UnmarshalPEMToPublicKey(publicKeyPEM)
-			if err != nil {
-				return nil, fmt.Errorf("parsing public key: %w", err)
-			}
-			pks = append(pks, pk)
-		}
-	}
-
-	for _, keyData := range keyDatas {
+	for _, keyData := range publicKeyPEMs {
 		pk, err := cryptoutils.UnmarshalPEMToPublicKey(keyData)
 		if err != nil {
 			return nil, fmt.Errorf("parsing public key: %w", err)
 		}
-		pks = append(pks, pk)
-
+		res.publicKeys = append(res.publicKeys, pk)
 	}
-
-	res.publicKeys = pks
 
 	if pr.Fulcio != nil {
 		f, err := pr.Fulcio.prepareTrustRoot()

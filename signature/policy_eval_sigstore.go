@@ -117,12 +117,17 @@ func (pr *prSigstoreSigned) prepareTrustRoot() (*sigstoreSignedTrustRoot, error)
 	if err != nil {
 		return nil, err
 	}
-	for _, keyData := range publicKeyPEMs {
-		pk, err := cryptoutils.UnmarshalPEMToPublicKey(keyData)
-		if err != nil {
-			return nil, fmt.Errorf("parsing public key: %w", err)
+	if publicKeyPEMs != nil {
+		for _, keyData := range publicKeyPEMs {
+			pk, err := cryptoutils.UnmarshalPEMToPublicKey(keyData)
+			if err != nil {
+				return nil, fmt.Errorf("parsing public key: %w", err)
+			}
+			res.publicKeys = append(res.publicKeys, pk)
 		}
-		res.publicKeys = append(res.publicKeys, pk)
+		if len(res.publicKeys) == 0 {
+			return nil, errors.New(`Internal inconsistency: "keyPath", "keyPaths", "keyData" and "keyDatas" produced no public keys`)
+		}
 	}
 
 	if pr.Fulcio != nil {
@@ -182,12 +187,12 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 
 	var publicKeys []crypto.PublicKey
 	switch {
-	case len(trustRoot.publicKeys) > 0 && trustRoot.fulcio != nil: // newPRSigstoreSigned rejects such combinations.
+	case trustRoot.publicKeys != nil && trustRoot.fulcio != nil: // newPRSigstoreSigned rejects such combinations.
 		return sarRejected, errors.New("Internal inconsistency: Both a public key and Fulcio CA specified")
-	case len(trustRoot.publicKeys) == 0 && trustRoot.fulcio == nil: // newPRSigstoreSigned rejects such combinations.
+	case trustRoot.publicKeys == nil && trustRoot.fulcio == nil: // newPRSigstoreSigned rejects such combinations.
 		return sarRejected, errors.New("Internal inconsistency: Neither a public key nor a Fulcio CA specified")
 
-	case len(trustRoot.publicKeys) > 0:
+	case trustRoot.publicKeys != nil:
 		if trustRoot.rekorPublicKey != nil {
 			untrustedSET, ok := untrustedAnnotations[signature.SigstoreSETAnnotationKey]
 			if !ok { // For user convenience; passing an empty []byte to VerifyRekorSet should work.
@@ -245,7 +250,8 @@ func (pr *prSigstoreSigned) isSignatureAccepted(ctx context.Context, image priva
 	}
 
 	if len(publicKeys) == 0 {
-		// Coverage: This should never happen, we have already excluded the possibility in the switch above.
+		// Coverage: This should never happen, we ensured that trustRoot.publicKeys is non-empty if set,
+		// and we have already excluded the possibility in the switch above.
 		return sarRejected, fmt.Errorf("Internal inconsistency: publicKey not set before verifying sigstore payload")
 	}
 

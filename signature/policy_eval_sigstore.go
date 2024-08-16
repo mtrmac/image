@@ -21,29 +21,44 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// loadBytesFromDataOrPath ensures there is at most one of ${prefix}Data and ${prefix}Path set,
+// configBytesSources contains configuration fields which may result in one or more []byte values
+type configBytesSources struct {
+	inconsistencyErrorMessage string // Error to return if more than one source is set
+	path                      string // ${prefix}Path: a path to a file containing the data, or ""
+	data                      []byte // ${prefix}Data: The raw data, or nil
+}
+
+// loadBytesFromConfigSources ensures at most one of the sources in src is set,
 // and returns the referenced data, or nil if neither is set.
-func loadBytesFromDataOrPath(prefix string, data []byte, path string) ([]byte, error) {
-	switch {
-	case data != nil && path != "":
-		return nil, fmt.Errorf(`Internal inconsistency: both "%sPath" and "%sData" specified`, prefix, prefix)
-	case path != "":
-		d, err := os.ReadFile(path)
+func loadBytesFromConfigSources(src configBytesSources) ([]byte, error) {
+	sources := 0
+	var data []byte // = nil
+	if src.path != "" {
+		sources++
+		d, err := os.ReadFile(src.path)
 		if err != nil {
 			return nil, err
 		}
-		return d, nil
-	case data != nil:
-		return data, nil
-	default: // Nothing
-		return nil, nil
+		data = d
 	}
+	if src.data != nil {
+		sources++
+		data = src.data
+	}
+	if sources > 1 {
+		return nil, errors.New(src.inconsistencyErrorMessage)
+	}
+	return data, nil
 }
 
 // prepareTrustRoot creates a fulcioTrustRoot from the input data.
 // (This also prevents external implementations of this interface, ensuring that prSigstoreSignedFulcio is the only one.)
 func (f *prSigstoreSignedFulcio) prepareTrustRoot() (*fulcioTrustRoot, error) {
-	caCertBytes, err := loadBytesFromDataOrPath("fulcioCA", f.CAData, f.CAPath)
+	caCertBytes, err := loadBytesFromConfigSources(configBytesSources{
+		inconsistencyErrorMessage: `Internal inconsistency: both "caPath" and "caData" specified`,
+		path:                      f.CAPath,
+		data:                      f.CAData,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +91,6 @@ func (pr *prSigstoreSigned) prepareTrustRoot() (*sigstoreSignedTrustRoot, error)
 	res := sigstoreSignedTrustRoot{}
 
 	pks := []crypto.PublicKey{}
-	var err error
 	var keyPaths []string
 	var keyDatas [][]byte
 
@@ -129,7 +143,11 @@ func (pr *prSigstoreSigned) prepareTrustRoot() (*sigstoreSignedTrustRoot, error)
 		res.fulcio = f
 	}
 
-	rekorPublicKeyPEM, err := loadBytesFromDataOrPath("rekorPublicKey", pr.RekorPublicKeyData, pr.RekorPublicKeyPath)
+	rekorPublicKeyPEM, err := loadBytesFromConfigSources(configBytesSources{
+		inconsistencyErrorMessage: `Internal inconsistency: both "rekorPublicKeyPath" and "rekorPublicKeyData" specified`,
+		path:                      pr.RekorPublicKeyPath,
+		data:                      pr.RekorPublicKeyData,
+	})
 	if err != nil {
 		return nil, err
 	}

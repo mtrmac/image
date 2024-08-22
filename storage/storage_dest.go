@@ -1197,7 +1197,7 @@ func (s *storageImageDestination) Commit(ctx context.Context, unparsedToplevel t
 	for _, layerBlob := range layerBlobs {
 		dataBlobs.Delete(layerBlob.Digest)
 	}
-	for _, blob := range dataBlobs.Values() {
+	for blob := range dataBlobs.All() {
 		v, err := os.ReadFile(s.lockProtected.filenames[blob])
 		if err != nil {
 			return fmt.Errorf("copying non-layer blob %q to image: %w", blob, err)

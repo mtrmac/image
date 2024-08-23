@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1191,9 +1192,7 @@ func (s *storageImageDestination) Commit(ctx context.Context, unparsedToplevel t
 	// Set up to save the non-layer blobs as data items.  Since we only share layers, they should all be in files, so
 	// we just need to screen out the ones that are actually layers to get the list of non-layers.
 	dataBlobs := set.New[digest.Digest]()
-	for blob := range s.lockProtected.filenames {
-		dataBlobs.Add(blob)
-	}
+	dataBlobs.AddSeq(maps.Keys(s.lockProtected.filenames))
 	for _, layerBlob := range layerBlobs {
 		dataBlobs.Delete(layerBlob.Digest)
 	}

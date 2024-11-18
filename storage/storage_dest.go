@@ -1040,6 +1040,7 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	if err2 != nil {
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("reading layer %q for blob %q/%q/%q: %w", layer.ID, trusted.blobDigest, trusted.tocDigest, trusted.diffID, err2)
 	}
+	defer diff.Close()
 	// Copy the layer diff to a file.  Diff() takes a lock that it holds
 	// until the ReadCloser that it returns is closed, and PutLayer() wants
 	// the same lock, so the diff can't just be directly streamed from one
@@ -1047,14 +1048,12 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	filename = s.computeNextBlobCacheFile()
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL, 0o600)
 	if err != nil {
-		diff.Close()
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("creating temporary file %q: %w", filename, err)
 	}
 	// Copy the data to the file.
 	// TODO: This can take quite some time, and should ideally be cancellable using
 	// ctx.Done().
 	fileSize, err := io.Copy(file, diff)
-	diff.Close()
 	file.Close()
 	if err != nil {
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("storing blob to file %q: %w", filename, err)

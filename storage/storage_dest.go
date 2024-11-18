@@ -427,6 +427,7 @@ func (s *storageImageDestination) tryReusingBlobAsPending(blobDigest digest.Dige
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	// FIXME: Check for GzippedEmptyLayer , per https://github.com/containers/image/pull/968
 	if options.SrcRef != nil && options.TOCDigest != "" && options.LayerIndex != nil {
 		// Check if we have the layer in the underlying additional layer store.
 		aLayer, err := s.imageRef.transport.store.LookupAdditionalLayer(options.TOCDigest, options.SrcRef.String())
@@ -993,6 +994,8 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	if !ok { // Our caller has already determined newLayerID, so the data must have been available.
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("internal inconsistency: layer (%d, %q) not found", index, layerDigest)
 	}
+
+	// FIXME: Return the right data for GzippedEmptyLayer, per https://github.com/containers/image/pull/968
 
 	if gotFilename {
 		// Read the cached blob and use it as a diff.

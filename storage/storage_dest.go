@@ -993,107 +993,119 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	if !ok { // Our caller has already determined newLayerID, so the data must have been available.
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("internal inconsistency: layer (%d, %q) not found", index, layerDigest)
 	}
-	var trustedOriginalDigest digest.Digest // For storage.LayerOptions
-	var trustedOriginalSize *int64
+
 	if gotFilename {
 		// The code setting .filenames[trusted.blobDigest] is responsible for ensuring that the file contents match trusted.blobDigest.
-		trustedOriginalDigest = trusted.blobDigest
-		trustedOriginalSize = nil // It’s s.lockProtected.fileSizes[trusted.blobDigest], but we don’t hold the lock now, and the consumer can compute it at trivial cost.
-	} else {
-		// Try to find the layer with contents matching the data we use.
-		var layer *storage.Layer // = nil
-		if trusted.diffID != "" {
-			if layers, err2 := s.imageRef.transport.store.LayersByUncompressedDigest(trusted.diffID); err2 == nil && len(layers) > 0 {
-				layer = &layers[0]
-			}
-		}
-		if layer == nil && trusted.tocDigest != "" {
-			if layers, err2 := s.imageRef.transport.store.LayersByTOCDigest(trusted.tocDigest); err2 == nil && len(layers) > 0 {
-				layer = &layers[0]
-			}
-		}
-		if layer == nil && trusted.blobDigest != "" {
-			if layers, err2 := s.imageRef.transport.store.LayersByCompressedDigest(trusted.blobDigest); err2 == nil && len(layers) > 0 {
-				layer = &layers[0]
-			}
-		}
-		if layer == nil {
-			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("layer for blob %q/%q/%q not found", trusted.blobDigest, trusted.tocDigest, trusted.diffID)
-		}
-
-		// Read the layer's contents.
-		noCompression := archive.Uncompressed
-		diffOptions := &storage.DiffOptions{
-			Compression: &noCompression,
-		}
-		diff, err2 := s.imageRef.transport.store.Diff("", layer.ID, diffOptions)
-		if err2 != nil {
-			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("reading layer %q for blob %q/%q/%q: %w", layer.ID, trusted.blobDigest, trusted.tocDigest, trusted.diffID, err2)
-		}
-		// Copy the layer diff to a file.  Diff() takes a lock that it holds
-		// until the ReadCloser that it returns is closed, and PutLayer() wants
-		// the same lock, so the diff can't just be directly streamed from one
-		// to the other.
-		filename = s.computeNextBlobCacheFile()
-		file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL, 0o600)
+		trustedOriginalDigest := trusted.blobDigest
+		var trustedOriginalSize *int64 = nil // It’s s.lockProtected.fileSizes[trusted.blobDigest], but we don’t hold the lock now, and the consumer can compute it at trivial cost.
+		// Read the cached blob and use it as a diff.
+		file, err := os.Open(filename)
 		if err != nil {
-			diff.Close()
-			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("creating temporary file %q: %w", filename, err)
+			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("opening file %q: %w", filename, err)
 		}
-		// Copy the data to the file.
-		// TODO: This can take quite some time, and should ideally be cancellable using
-		// ctx.Done().
-		fileSize, err := io.Copy(file, diff)
-		diff.Close()
-		file.Close()
-		if err != nil {
-			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("storing blob to file %q: %w", filename, err)
-		}
+		return file, trusted, storage.LayerOptions{
+			OriginalDigest: trustedOriginalDigest,
+			OriginalSize:   trustedOriginalSize, // nil in many cases
+			// This might be "" if trusted.layerIdentifiedByTOC; in that case PutLayer will compute the value from the stream.
+			UncompressedDigest: trusted.diffID,
+		}, nil
+	}
 
-		if trusted.diffID == "" && layer.UncompressedDigest != "" {
-			trusted.diffID = layer.UncompressedDigest // This data might have been unavailable in tryReusingBlobAsPending, and is only known now.
-		}
-
-		// Set the layer’s CompressedDigest/CompressedSize to relevant values if known, to allow more layer reuse.
-		// But we don’t want to just use the size from the manifest if we never saw the compressed blob,
-		// so that we don’t propagate mistakes / attacks.
-		//
-		// s.lockProtected.fileSizes[trusted.blobDigest] is not set, otherwise we would have found gotFilename.
-		// So, check if the layer we found contains that metadata. (If that layer continues to exist, there’s no benefit
-		// to us propagating the metadata; but that layer could be removed, and in that case propagating the metadata to
-		// this new layer copy can help.)
-		if trusted.blobDigest != "" && layer.CompressedDigest == trusted.blobDigest && layer.CompressedSize > 0 {
-			trustedOriginalDigest = trusted.blobDigest
-			sizeCopy := layer.CompressedSize
-			trustedOriginalSize = &sizeCopy
-		} else {
-			// The stream we have is uncompressed, and it matches trusted.diffID (if known).
-			//
-			// We can legitimately set storage.LayerOptions.OriginalDigest to "",
-			// but that would just result in PutLayer computing the digest of the input stream == trusted.diffID.
-			// So, instead, set .OriginalDigest to the value we know already, to avoid that digest computation.
-			trustedOriginalDigest = trusted.diffID
-			trustedOriginalSize = nil // Probably layer.UncompressedSize, but the consumer can compute it at trivial cost.
-		}
-
-		// Allow using the already-collected layer contents without extracting the layer again.
-		//
-		// This only matches against the uncompressed digest.
-		// If we have trustedOriginalDigest == trusted.blobDigest, we could arrange to reuse the
-		// same uncompressed stream for future calls of createNewLayer; but for the non-layer blobs (primarily the config),
-		// we assume that the file at filenames[someDigest] matches someDigest _exactly_; we would need to differentiate
-		// between “original files” and “possibly uncompressed files”.
-		// Within-image layer reuse is probably very rare, for now we prefer to avoid that complexity.
-		if trusted.diffID != "" {
-			s.lock.Lock()
-			s.lockProtected.blobDiffIDs[trusted.diffID] = trusted.diffID
-			s.lockProtected.filenames[trusted.diffID] = filename
-			s.lockProtected.fileSizes[trusted.diffID] = fileSize
-			s.lock.Unlock()
+	// Try to find a layer with contents matching the data we use.
+	var layer *storage.Layer // = nil
+	if trusted.diffID != "" {
+		if layers, err2 := s.imageRef.transport.store.LayersByUncompressedDigest(trusted.diffID); err2 == nil && len(layers) > 0 {
+			layer = &layers[0]
 		}
 	}
+	if layer == nil && trusted.tocDigest != "" {
+		if layers, err2 := s.imageRef.transport.store.LayersByTOCDigest(trusted.tocDigest); err2 == nil && len(layers) > 0 {
+			layer = &layers[0]
+		}
+	}
+	if layer == nil && trusted.blobDigest != "" {
+		if layers, err2 := s.imageRef.transport.store.LayersByCompressedDigest(trusted.blobDigest); err2 == nil && len(layers) > 0 {
+			layer = &layers[0]
+		}
+	}
+	if layer == nil {
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("layer for blob %q/%q/%q not found", trusted.blobDigest, trusted.tocDigest, trusted.diffID)
+	}
+
+	// Read the layer's contents.
+	noCompression := archive.Uncompressed
+	diffOptions := &storage.DiffOptions{
+		Compression: &noCompression,
+	}
+	diff, err2 := s.imageRef.transport.store.Diff("", layer.ID, diffOptions)
+	if err2 != nil {
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("reading layer %q for blob %q/%q/%q: %w", layer.ID, trusted.blobDigest, trusted.tocDigest, trusted.diffID, err2)
+	}
+	// Copy the layer diff to a file.  Diff() takes a lock that it holds
+	// until the ReadCloser that it returns is closed, and PutLayer() wants
+	// the same lock, so the diff can't just be directly streamed from one
+	// to the other.
+	filename = s.computeNextBlobCacheFile()
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL, 0o600)
+	if err != nil {
+		diff.Close()
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("creating temporary file %q: %w", filename, err)
+	}
+	// Copy the data to the file.
+	// TODO: This can take quite some time, and should ideally be cancellable using
+	// ctx.Done().
+	fileSize, err := io.Copy(file, diff)
+	diff.Close()
+	file.Close()
+	if err != nil {
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("storing blob to file %q: %w", filename, err)
+	}
+
+	if trusted.diffID == "" && layer.UncompressedDigest != "" {
+		trusted.diffID = layer.UncompressedDigest // This data might have been unavailable in tryReusingBlobAsPending, and is only known now.
+	}
+
+	// Set the layer’s CompressedDigest/CompressedSize to relevant values if known, to allow more layer reuse.
+	// But we don’t want to just use the size from the manifest if we never saw the compressed blob,
+	// so that we don’t propagate mistakes / attacks.
+	//
+	// s.lockProtected.fileSizes[trusted.blobDigest] is not set, otherwise we would have found gotFilename.
+	// So, check if the layer we found contains that metadata. (If that layer continues to exist, there’s no benefit
+	// to us propagating the metadata; but that layer could be removed, and in that case propagating the metadata to
+	// this new layer copy can help.)
+	var trustedOriginalDigest digest.Digest // For storage.LayerOptions
+	var trustedOriginalSize *int64
+	if trusted.blobDigest != "" && layer.CompressedDigest == trusted.blobDigest && layer.CompressedSize > 0 {
+		trustedOriginalDigest = trusted.blobDigest
+		sizeCopy := layer.CompressedSize
+		trustedOriginalSize = &sizeCopy
+	} else {
+		// The stream we have is uncompressed, and it matches trusted.diffID (if known).
+		//
+		// We can legitimately set storage.LayerOptions.OriginalDigest to "",
+		// but that would just result in PutLayer computing the digest of the input stream == trusted.diffID.
+		// So, instead, set .OriginalDigest to the value we know already, to avoid that digest computation.
+		trustedOriginalDigest = trusted.diffID
+		trustedOriginalSize = nil // Probably layer.UncompressedSize, but the consumer can compute it at trivial cost.
+	}
+
+	// Allow using the already-collected layer contents without extracting the layer again.
+	//
+	// This only matches against the uncompressed digest.
+	// If we have trustedOriginalDigest == trusted.blobDigest, we could arrange to reuse the
+	// same uncompressed stream for future calls of createNewLayer; but for the non-layer blobs (primarily the config),
+	// we assume that the file at filenames[someDigest] matches someDigest _exactly_; we would need to differentiate
+	// between “original files” and “possibly uncompressed files”.
+	// Within-image layer reuse is probably very rare, for now we prefer to avoid that complexity.
+	if trusted.diffID != "" {
+		s.lock.Lock()
+		s.lockProtected.blobDiffIDs[trusted.diffID] = trusted.diffID
+		s.lockProtected.filenames[trusted.diffID] = filename
+		s.lockProtected.fileSizes[trusted.diffID] = fileSize
+		s.lock.Unlock()
+	}
 	// Read the cached blob and use it as a diff.
-	file, err := os.Open(filename)
+	file, err = os.Open(filename)
 	if err != nil {
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("opening file %q: %w", filename, err)
 	}

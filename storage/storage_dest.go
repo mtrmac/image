@@ -961,14 +961,14 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		return layer, nil
 	}
 
-	file, trusted, putLayerOptions, err := s.openLayerContents(index, layerDigest)
+	stream, trusted, putLayerOptions, err := s.openLayerContents(index, layerDigest)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer stream.Close()
 	// Build the new layer using the diff, regardless of where it came from.
 	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
-	layer, _, err := s.imageRef.transport.store.PutLayer(newLayerID, parentLayer, nil, "", false, &putLayerOptions, file)
+	layer, _, err := s.imageRef.transport.store.PutLayer(newLayerID, parentLayer, nil, "", false, &putLayerOptions, stream)
 	if err != nil && !errors.Is(err, storage.ErrDuplicateID) {
 		return nil, fmt.Errorf("adding layer with blob %q/%q/%q: %w", trusted.blobDigest, trusted.tocDigest, trusted.diffID, err)
 	}

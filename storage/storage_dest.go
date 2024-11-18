@@ -961,6 +961,25 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		return layer, nil
 	}
 
+	file, trusted, putLayerOptions, err := s.openLayerContents(index, layerDigest)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	// Build the new layer using the diff, regardless of where it came from.
+	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
+	layer, _, err := s.imageRef.transport.store.PutLayer(newLayerID, parentLayer, nil, "", false, &putLayerOptions, file)
+	if err != nil && !errors.Is(err, storage.ErrDuplicateID) {
+		return nil, fmt.Errorf("adding layer with blob %q/%q/%q: %w", trusted.blobDigest, trusted.tocDigest, trusted.diffID, err)
+	}
+	return layer, nil
+}
+
+// openLayerContents opens a stream of data for (index, layerDigest).
+// The stream might exactly match layerDigest, or be an equivalent uncompressed stream.
+// It returns the full layer identity data, and a LayerOptions value
+// (containing OriginalDigest, OriginalSize, UncompressedDigest) to pass to PutLayer.
+func (s *storageImageDestination) openLayerContents(index int, layerDigest digest.Digest) (io.ReadCloser, trustedLayerIdentityData, storage.LayerOptions, error) {
 	// Check if we previously cached a file with that blob's contents.  If we didn't,
 	// then we need to read the desired contents from a layer.
 	var filename string
@@ -971,8 +990,8 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		filename, gotFilename = s.lockProtected.filenames[trusted.blobDigest]
 	}
 	s.lock.Unlock()
-	if !ok { // We have already determined newLayerID, so the data must have been available.
-		return nil, fmt.Errorf("internal inconsistency: layer (%d, %q) not found", index, layerDigest)
+	if !ok { // Our caller has already determined newLayerID, so the data must have been available.
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("internal inconsistency: layer (%d, %q) not found", index, layerDigest)
 	}
 	var trustedOriginalDigest digest.Digest // For storage.LayerOptions
 	var trustedOriginalSize *int64
@@ -999,7 +1018,7 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 			}
 		}
 		if layer == nil {
-			return nil, fmt.Errorf("layer for blob %q/%q/%q not found", trusted.blobDigest, trusted.tocDigest, trusted.diffID)
+			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("layer for blob %q/%q/%q not found", trusted.blobDigest, trusted.tocDigest, trusted.diffID)
 		}
 
 		// Read the layer's contents.
@@ -1009,7 +1028,7 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		}
 		diff, err2 := s.imageRef.transport.store.Diff("", layer.ID, diffOptions)
 		if err2 != nil {
-			return nil, fmt.Errorf("reading layer %q for blob %q/%q/%q: %w", layer.ID, trusted.blobDigest, trusted.tocDigest, trusted.diffID, err2)
+			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("reading layer %q for blob %q/%q/%q: %w", layer.ID, trusted.blobDigest, trusted.tocDigest, trusted.diffID, err2)
 		}
 		// Copy the layer diff to a file.  Diff() takes a lock that it holds
 		// until the ReadCloser that it returns is closed, and PutLayer() wants
@@ -1019,7 +1038,7 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL, 0o600)
 		if err != nil {
 			diff.Close()
-			return nil, fmt.Errorf("creating temporary file %q: %w", filename, err)
+			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("creating temporary file %q: %w", filename, err)
 		}
 		// Copy the data to the file.
 		// TODO: This can take quite some time, and should ideally be cancellable using
@@ -1028,7 +1047,7 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 		diff.Close()
 		file.Close()
 		if err != nil {
-			return nil, fmt.Errorf("storing blob to file %q: %w", filename, err)
+			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("storing blob to file %q: %w", filename, err)
 		}
 
 		if trusted.diffID == "" && layer.UncompressedDigest != "" {
@@ -1076,21 +1095,14 @@ func (s *storageImageDestination) createNewLayer(index int, layerDigest digest.D
 	// Read the cached blob and use it as a diff.
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("opening file %q: %w", filename, err)
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("opening file %q: %w", filename, err)
 	}
-	defer file.Close()
-	// Build the new layer using the diff, regardless of where it came from.
-	// TODO: This can take quite some time, and should ideally be cancellable using ctx.Done().
-	layer, _, err := s.imageRef.transport.store.PutLayer(newLayerID, parentLayer, nil, "", false, &storage.LayerOptions{
+	return file, trusted, storage.LayerOptions{
 		OriginalDigest: trustedOriginalDigest,
 		OriginalSize:   trustedOriginalSize, // nil in many cases
 		// This might be "" if trusted.layerIdentifiedByTOC; in that case PutLayer will compute the value from the stream.
 		UncompressedDigest: trusted.diffID,
-	}, file)
-	if err != nil && !errors.Is(err, storage.ErrDuplicateID) {
-		return nil, fmt.Errorf("adding layer with blob %q/%q/%q: %w", trusted.blobDigest, trusted.tocDigest, trusted.diffID, err)
-	}
-	return layer, nil
+	}, nil
 }
 
 // untrustedLayerDiffID returns a DiffID value for layerIndex from the image’s config.

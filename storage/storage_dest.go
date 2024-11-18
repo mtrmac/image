@@ -1046,15 +1046,21 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	// the same lock, so the diff can't just be directly streamed from one
 	// to the other.
 	filename = s.computeNextBlobCacheFile()
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_EXCL, 0o600)
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_TRUNC|os.O_RDWR|os.O_EXCL, 0o600)
 	if err != nil {
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("creating temporary file %q: %w", filename, err)
 	}
+	succeeded := false
+	defer func() {
+		if !succeeded {
+			file.Close()
+		}
+	}()
+
 	// Copy the data to the file.
 	// TODO: This can take quite some time, and should ideally be cancellable using
 	// ctx.Done().
 	fileSize, err := io.Copy(file, diff)
-	file.Close()
 	if err != nil {
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("storing blob to file %q: %w", filename, err)
 	}
@@ -1104,11 +1110,10 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 		s.lockProtected.fileSizes[trusted.diffID] = fileSize
 		s.lock.Unlock()
 	}
-	// Read the cached blob and use it as a diff.
-	file, err = os.Open(filename)
-	if err != nil {
-		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("opening file %q: %w", filename, err)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("rewinding file %q: %w", filename, err)
 	}
+	succeeded = true
 	return file, trusted, putLayerOptions, nil
 }
 

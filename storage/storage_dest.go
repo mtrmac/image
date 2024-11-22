@@ -995,17 +995,16 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	}
 
 	if gotFilename {
-		// The code setting .filenames[trusted.blobDigest] is responsible for ensuring that the file contents match trusted.blobDigest.
-		trustedOriginalDigest := trusted.blobDigest
-		var trustedOriginalSize *int64 = nil // It’s s.lockProtected.fileSizes[trusted.blobDigest], but we don’t hold the lock now, and the consumer can compute it at trivial cost.
 		// Read the cached blob and use it as a diff.
 		file, err := os.Open(filename)
 		if err != nil {
 			return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("opening file %q: %w", filename, err)
 		}
 		return file, trusted, storage.LayerOptions{
-			OriginalDigest: trustedOriginalDigest,
-			OriginalSize:   trustedOriginalSize, // nil in many cases
+			// The code setting .filenames[trusted.blobDigest] is responsible for ensuring that the file contents match trusted.blobDigest.
+			OriginalDigest: trusted.blobDigest,
+			// It’s s.lockProtected.fileSizes[trusted.blobDigest], but we don’t hold the lock now, and the consumer can compute it at trivial cost.
+			OriginalSize: nil,
 			// This might be "" if trusted.layerIdentifiedByTOC; in that case PutLayer will compute the value from the stream.
 			UncompressedDigest: trusted.diffID,
 		}, nil
@@ -1073,20 +1072,22 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	// So, check if the layer we found contains that metadata. (If that layer continues to exist, there’s no benefit
 	// to us propagating the metadata; but that layer could be removed, and in that case propagating the metadata to
 	// this new layer copy can help.)
-	var trustedOriginalDigest digest.Digest // For storage.LayerOptions
-	var trustedOriginalSize *int64
+	putLayerOptions := storage.LayerOptions{
+		// This might be "" if trusted.layerIdentifiedByTOC; in that case PutLayer will compute the value from the stream.
+		UncompressedDigest: trusted.diffID,
+	}
 	if trusted.blobDigest != "" && layer.CompressedDigest == trusted.blobDigest && layer.CompressedSize > 0 {
-		trustedOriginalDigest = trusted.blobDigest
+		putLayerOptions.OriginalDigest = trusted.blobDigest
 		sizeCopy := layer.CompressedSize
-		trustedOriginalSize = &sizeCopy
+		putLayerOptions.OriginalSize = &sizeCopy
 	} else {
 		// The stream we have is uncompressed, and it matches trusted.diffID (if known).
 		//
 		// We can legitimately set storage.LayerOptions.OriginalDigest to "",
 		// but that would just result in PutLayer computing the digest of the input stream == trusted.diffID.
 		// So, instead, set .OriginalDigest to the value we know already, to avoid that digest computation.
-		trustedOriginalDigest = trusted.diffID
-		trustedOriginalSize = nil // Probably layer.UncompressedSize, but the consumer can compute it at trivial cost.
+		putLayerOptions.OriginalDigest = trusted.diffID
+		putLayerOptions.OriginalSize = nil // Probably layer.UncompressedSize, but the consumer can compute it at trivial cost.
 	}
 
 	// Allow using the already-collected layer contents without extracting the layer again.
@@ -1109,12 +1110,7 @@ func (s *storageImageDestination) openLayerContents(index int, layerDigest diges
 	if err != nil {
 		return nil, trustedLayerIdentityData{}, storage.LayerOptions{}, fmt.Errorf("opening file %q: %w", filename, err)
 	}
-	return file, trusted, storage.LayerOptions{
-		OriginalDigest: trustedOriginalDigest,
-		OriginalSize:   trustedOriginalSize, // nil in many cases
-		// This might be "" if trusted.layerIdentifiedByTOC; in that case PutLayer will compute the value from the stream.
-		UncompressedDigest: trusted.diffID,
-	}, nil
+	return file, trusted, putLayerOptions, nil
 }
 
 // untrustedLayerDiffID returns a DiffID value for layerIndex from the image’s config.

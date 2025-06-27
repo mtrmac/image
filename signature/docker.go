@@ -27,7 +27,7 @@ func SignDockerManifestWithOptions(m []byte, dockerReference string, mech Signin
 	if err != nil {
 		return nil, err
 	}
-	sig := newUntrustedSignature(manifestDigest, dockerReference)
+	sig := internal.NewUntrustedSignature(manifestDigest, dockerReference)
 
 	var passphrase string
 	if options != nil {
@@ -38,7 +38,7 @@ func SignDockerManifestWithOptions(m []byte, dockerReference string, mech Signin
 		}
 	}
 
-	return sig.sign(mech, keyIdentity, passphrase)
+	return sig.Sign(mech, keyIdentity, passphrase)
 }
 
 // SignDockerManifest returns a signature for manifest as the specified dockerReference,
@@ -65,15 +65,15 @@ func VerifyImageManifestSignatureUsingKeyIdentityList(unverifiedSignature, unver
 		return nil, "", err
 	}
 	var matchedKeyIdentity string
-	sig, err := verifyAndExtractSignature(mech, unverifiedSignature, signatureAcceptanceRules{
-		validateKeyIdentity: func(keyIdentity string) error {
+	sig, err := internal.VerifyAndExtractSignature(mech, unverifiedSignature, internal.SignatureAcceptanceRules{
+		ValidateKeyIdentity: func(keyIdentity string) error {
 			if !slices.Contains(expectedKeyIdentities, keyIdentity) {
 				return internal.NewInvalidSignatureError(fmt.Sprintf("Signature by %s does not match expected fingerprints %v", keyIdentity, expectedKeyIdentities))
 			}
 			matchedKeyIdentity = keyIdentity
 			return nil
 		},
-		validateSignedDockerReference: func(signedDockerReference string) error {
+		ValidateSignedDockerReference: func(signedDockerReference string) error {
 			signedRef, err := reference.ParseNormalizedNamed(signedDockerReference)
 			if err != nil {
 				return internal.NewInvalidSignatureError(fmt.Sprintf("Invalid docker reference %q in signature", signedDockerReference))
@@ -84,7 +84,7 @@ func VerifyImageManifestSignatureUsingKeyIdentityList(unverifiedSignature, unver
 			}
 			return nil
 		},
-		validateSignedDockerManifestDigest: func(signedDockerManifestDigest digest.Digest) error {
+		ValidateSignedDockerManifestDigest: func(signedDockerManifestDigest digest.Digest) error {
 			matches, err := manifest.MatchesDigest(unverifiedManifest, signedDockerManifestDigest)
 			if err != nil {
 				return err

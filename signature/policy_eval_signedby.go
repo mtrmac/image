@@ -51,8 +51,8 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 		return sarRejected, nil, PolicyRequirementError("No public keys imported")
 	}
 
-	signature, err := verifyAndExtractSignature(mech, sig, signatureAcceptanceRules{
-		validateKeyIdentity: func(keyIdentity string) error {
+	signature, err := internal.VerifyAndExtractSignature(mech, sig, internal.SignatureAcceptanceRules{
+		ValidateKeyIdentity: func(keyIdentity string) error {
 			if slices.Contains(trustedIdentities, keyIdentity) {
 				return nil
 			}
@@ -60,13 +60,13 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 			// not be reachable.
 			return PolicyRequirementError(fmt.Sprintf("Signature by key %s is not accepted", keyIdentity))
 		},
-		validateSignedDockerReference: func(ref string) error {
+		ValidateSignedDockerReference: func(ref string) error {
 			if !pr.SignedIdentity.matchesDockerReference(image, ref) {
 				return PolicyRequirementError(fmt.Sprintf("Signature for identity %q is not accepted", ref))
 			}
 			return nil
 		},
-		validateSignedDockerManifestDigest: func(digest digest.Digest) error {
+		ValidateSignedDockerManifestDigest: func(digest digest.Digest) error {
 			m, _, err := image.Manifest(ctx)
 			if err != nil {
 				return err

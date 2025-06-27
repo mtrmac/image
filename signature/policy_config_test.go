@@ -20,18 +20,6 @@ import (
 
 type mSA map[string]any // To minimize typing the long name
 
-// A short-hand way to get a JSON object field value or panic. No error handling done, we know
-// what we are working with, a panic in a test is good enough, and fitting test cases on a single line
-// is a priority.
-func x(m mSA, fields ...string) mSA {
-	for _, field := range fields {
-		// Not .(mSA) because type assertion of an unnamed type to a named type always fails (the types
-		// are not "identical"), but the assignment is fine because they are "assignable".
-		m = m[field].(map[string]any)
-	}
-	return m
-}
-
 // policyFixtureContents is a data structure equal to the contents of "fixtures/policy.json"
 var policyFixtureContents = &Policy{
 	Default: PolicyRequirements{NewPRReject()},

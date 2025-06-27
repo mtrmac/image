@@ -23,12 +23,6 @@ type SignOptions struct {
 // SignDockerManifest returns a signature for manifest as the specified dockerReference,
 // using mech and keyIdentity, and the specified options.
 func SignDockerManifestWithOptions(m []byte, dockerReference string, mech SigningMechanism, keyIdentity string, options *SignOptions) ([]byte, error) {
-	manifestDigest, err := manifest.Digest(m)
-	if err != nil {
-		return nil, err
-	}
-	sig := internal.NewUntrustedSignature(manifestDigest, dockerReference)
-
 	var passphrase string
 	if options != nil {
 		passphrase = options.Passphrase
@@ -38,7 +32,20 @@ func SignDockerManifestWithOptions(m []byte, dockerReference string, mech Signin
 		}
 	}
 
-	return sig.Sign(mech, keyIdentity, passphrase)
+	var rawSigner func(input []byte) ([]byte, error)
+	if newMech, ok := mech.(internal.SigningMechanismWithPassphrase); ok {
+		rawSigner = (func(input []byte) ([]byte, error) {
+			return newMech.SignWithPassphrase(input, keyIdentity, passphrase)
+		})
+	} else if passphrase != "" {
+		return nil, errors.New("signing mechanism does not support passphrases")
+	} else {
+		rawSigner = func(input []byte) ([]byte, error) {
+			return mech.Sign(input, keyIdentity)
+		}
+	}
+
+	return internal.SignDockerManifest(m, dockerReference, rawSigner)
 }
 
 // SignDockerManifest returns a signature for manifest as the specified dockerReference,

@@ -175,27 +175,19 @@ func (s *UntrustedSignature) strictUnmarshalJSON(data []byte) error {
 	})
 }
 
-// Sign formats the signature and returns a blob signed using mech and keyIdentity
+// Sign formats the signature and returns a blob signed using rawSigner.
 // (If it seems surprising that this is a method on untrustedSignature, note that there
 // isn’t a good reason to think that a key used by the user is trusted by any component
 // of the system just because it is a private key — actually the presence of a private key
 // on the system increases the likelihood of an a successful attack on that private key
 // on that particular system.)
-func (s UntrustedSignature) Sign(mech SigningMechanism, keyIdentity string, passphrase string) ([]byte, error) {
+func (s UntrustedSignature) Sign(rawSigner func(input []byte) ([]byte, error)) ([]byte, error) {
 	json, err := json.Marshal(s)
 	if err != nil {
 		return nil, err
 	}
 
-	if newMech, ok := mech.(SigningMechanismWithPassphrase); ok {
-		return newMech.SignWithPassphrase(json, keyIdentity, passphrase)
-	}
-
-	if passphrase != "" {
-		return nil, errors.New("signing mechanism does not support passphrases")
-	}
-
-	return mech.Sign(json, keyIdentity)
+	return rawSigner(json)
 }
 
 // SignatureAcceptanceRules specifies how to decide whether an untrusted signature is acceptable.

@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/containers/image/v5/docker/reference"
 	internalSig "github.com/containers/image/v5/internal/signature"
@@ -48,11 +47,6 @@ func WithKeyFingerprint(keyFingerprint string) Option {
 // WithPassphrase returns an Option for NewSigner, specifying a passphrase for the private key.
 func WithPassphrase(passphrase string) Option {
 	return func(s *simpleSequoiaSigner) error {
-		// The gpgme implementation can’t use passphrase with \n; reject it here for consistent behavior.
-		// FIXME: We don’t need it in this API at all, but the "\n" check exists in the current call stack. That should go away.
-		if strings.Contains(passphrase, "\n") {
-			return errors.New("invalid passphrase: must not contain a line break")
-		}
 		s.passphrase = passphrase
 		return nil
 	}

@@ -7,6 +7,7 @@ import (
 // SignDockerManifest returns a signature for manifest as the specified dockerReference,
 // using rawSigner.
 // FIXME: eventually, rename
+// FIXME: make dockerReference well-typed, enforce !IsNameOnly
 func SignDockerManifest(m []byte, dockerReference string, rawSigner func(input []byte) ([]byte, error)) ([]byte, error) {
 	manifestDigest, err := manifest.Digest(m)
 	if err != nil {

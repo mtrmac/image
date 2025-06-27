@@ -11,7 +11,7 @@ import (
 	"github.com/containers/image/v5/docker/reference"
 	internalSig "github.com/containers/image/v5/internal/signature"
 	internalSigner "github.com/containers/image/v5/internal/signer"
-	"github.com/containers/image/v5/signature"
+	"github.com/containers/image/v5/signature/internal"
 	"github.com/containers/image/v5/signature/internal/sequoia"
 	"github.com/containers/image/v5/signature/signer"
 )
@@ -109,11 +109,8 @@ func (s *simpleSequoiaSigner) SignImageManifest(ctx context.Context, m []byte, d
 	if reference.IsNameOnly(dockerReference) {
 		return nil, fmt.Errorf("reference %s can’t be signed, it has neither a tag nor a digest", dockerReference.String())
 	}
-	wrapped := sequoiaSigningOnlyMechanism{ // FIXME: Avoid this?
-		inner: s.mech,
-	}
-	simpleSig, err := signature.SignDockerManifestWithOptions(m, dockerReference.String(), &wrapped, s.keyFingerprint, &signature.SignOptions{
-		Passphrase: s.passphrase,
+	simpleSig, err := internal.SignDockerManifest(m, dockerReference.String(), func(input []byte) ([]byte, error) {
+		return s.mech.SignWithPassphrase(input, s.keyFingerprint, s.passphrase)
 	})
 	if err != nil {
 		return nil, err

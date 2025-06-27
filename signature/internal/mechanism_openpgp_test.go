@@ -1,6 +1,6 @@
 //go:build containers_image_openpgp
 
-package signature
+package internal
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 )
 
 func TestOpenpgpSigningMechanismSupportsSigning(t *testing.T) {
-	mech, _, err := NewEphemeralGPGSigningMechanism([]byte{})
+	mech, _, err := NewEphemeralGPGSigningMechanism([][]byte{})
 	require.NoError(t, err)
 	defer mech.Close()
 	err = mech.SupportsSigning()
@@ -19,7 +19,7 @@ func TestOpenpgpSigningMechanismSupportsSigning(t *testing.T) {
 }
 
 func TestOpenpgpSigningMechanismSign(t *testing.T) {
-	mech, _, err := NewEphemeralGPGSigningMechanism([]byte{})
+	mech, _, err := NewEphemeralGPGSigningMechanism([][]byte{})
 	require.NoError(t, err)
 	defer mech.Close()
 	_, err = mech.Sign([]byte{}, TestKeyFingerprint)

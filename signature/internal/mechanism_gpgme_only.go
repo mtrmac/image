@@ -1,6 +1,6 @@
 //go:build !containers_image_openpgp && !containers_image_sequoia
 
-package signature
+package internal
 
 import (
 	"os"
@@ -8,11 +8,11 @@ import (
 	"github.com/proglottis/gpgme"
 )
 
-// newEphemeralGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism which
+// NewEphemeralGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism which
 // recognizes _only_ public keys from the supplied blobs, and returns the identities
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
-func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
+func NewEphemeralGPGSigningMechanism(blobs [][]byte) (SigningMechanismWithPassphrase, []string, error) {
 	dir, err := os.MkdirTemp("", "containers-ephemeral-gpg-")
 	if err != nil {
 		return nil, nil, err
@@ -44,7 +44,7 @@ func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassph
 // importKeysFromBytes imports public keys from the supplied blob and returns their identities.
 // The blob is assumed to have an appropriate format (the caller is expected to know which one).
 // NOTE: This may modify long-term state (e.g. key storage in a directory underlying the mechanism);
-// but we do not make this public, it can only be used through newEphemeralGPGSigningMechanism.
+// but we do not make this public, it can only be used through NewEphemeralGPGSigningMechanism.
 func importKeysFromBytes(ctx *gpgme.Context, blob []byte) ([]string, error) {
 	inputData, err := gpgme.NewDataBytes(blob)
 	if err != nil {

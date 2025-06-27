@@ -190,7 +190,7 @@ func (s untrustedSignature) sign(mech SigningMechanism, keyIdentity string, pass
 		return nil, err
 	}
 
-	if newMech, ok := mech.(signingMechanismWithPassphrase); ok {
+	if newMech, ok := mech.(internal.SigningMechanismWithPassphrase); ok {
 		return newMech.SignWithPassphrase(json, keyIdentity, passphrase)
 	}
 

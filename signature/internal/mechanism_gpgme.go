@@ -1,9 +1,9 @@
 //go:build !containers_image_openpgp
 
-package signature
+package internal
 
 // This is shared by mechanism_gpgme_only.go and mechanism_sequoia.go; in both situations
-// newGPGSigningMechanismInDirectory is implemented using GPGME.
+// NewGPGSigningMechanismInDirectory is implemented using GPGME.
 
 import (
 	"bytes"
@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/containers/image/v5/signature/internal"
 	"github.com/proglottis/gpgme"
 )
 
@@ -24,16 +23,16 @@ type gpgmeSigningMechanism struct {
 // newGPGMESigningMechanism returns a new GPG/OpenPGP signing mechanism for ctx.
 // The caller must call .Close() on the returned SigningMechanism; if ephemeralDir is set,
 // the .Close() call will remove its contents.
-func newGPGMESigningMechanism(ctx *gpgme.Context, ephemeralDir string) signingMechanismWithPassphrase {
+func newGPGMESigningMechanism(ctx *gpgme.Context, ephemeralDir string) SigningMechanismWithPassphrase {
 	return &gpgmeSigningMechanism{
 		ctx:          ctx,
 		ephemeralDir: ephemeralDir,
 	}
 }
 
-// newGPGSigningMechanismInDirectory returns a new GPG/OpenPGP signing mechanism, using optionalDir if not empty.
+// NewGPGSigningMechanismInDirectory returns a new GPG/OpenPGP signing mechanism, using optionalDir if not empty.
 // The caller must call .Close() on the returned SigningMechanism.
-func newGPGSigningMechanismInDirectory(optionalDir string) (signingMechanismWithPassphrase, error) {
+func NewGPGSigningMechanismInDirectory(optionalDir string) (SigningMechanismWithPassphrase, error) {
 	ctx, err := newGPGMEContext(optionalDir)
 	if err != nil {
 		return nil, err
@@ -137,13 +136,13 @@ func (m *gpgmeSigningMechanism) Verify(unverifiedSignature []byte) (contents []b
 		return nil, "", err
 	}
 	if len(sigs) != 1 {
-		return nil, "", internal.NewInvalidSignatureError(fmt.Sprintf("Unexpected GPG signature count %d", len(sigs)))
+		return nil, "", NewInvalidSignatureError(fmt.Sprintf("Unexpected GPG signature count %d", len(sigs)))
 	}
 	sig := sigs[0]
 	// This is sig.Summary == gpgme.SigSumValid except for key trust, which we handle ourselves
 	if sig.Status != nil || sig.Validity == gpgme.ValidityNever || sig.ValidityReason != nil || sig.WrongKeyUsage {
 		// FIXME: Better error reporting eventually
-		return nil, "", internal.NewInvalidSignatureError(fmt.Sprintf("Invalid GPG signature: %#v", sig))
+		return nil, "", NewInvalidSignatureError(fmt.Sprintf("Invalid GPG signature: %#v", sig))
 	}
 	return signedBuffer.Bytes(), sig.Fingerprint, nil
 }

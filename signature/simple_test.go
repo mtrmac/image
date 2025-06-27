@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/image/v5/signature/internal"
 	"github.com/containers/image/v5/version"
 	"github.com/opencontainers/go-digest"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -222,7 +223,7 @@ func TestUnmarshalJSON(t *testing.T) {
 func TestSign(t *testing.T) {
 	const testDigest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-	mech, err := newGPGSigningMechanismInDirectory(testGPGHomeDirectory)
+	mech, err := internal.NewGPGSigningMechanismInDirectory(testGPGHomeDirectory)
 	require.NoError(t, err)
 	defer mech.Close()
 
@@ -271,7 +272,7 @@ func TestSign(t *testing.T) {
 }
 
 func TestVerifyAndExtractSignature(t *testing.T) {
-	mech, err := newGPGSigningMechanismInDirectory(testGPGHomeDirectory)
+	mech, err := internal.NewGPGSigningMechanismInDirectory(testGPGHomeDirectory)
 	require.NoError(t, err)
 	defer mech.Close()
 

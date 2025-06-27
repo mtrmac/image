@@ -11,6 +11,7 @@ import (
 	"github.com/containers/image/v5/internal/multierr"
 	"github.com/containers/image/v5/internal/private"
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/signature/internal"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -41,7 +42,7 @@ func (pr *prSignedBy) isSignatureAuthorAccepted(ctx context.Context, image priva
 	}
 
 	// FIXME: move this to per-context initialization
-	mech, trustedIdentities, err := newEphemeralGPGSigningMechanism(data)
+	mech, trustedIdentities, err := internal.NewEphemeralGPGSigningMechanism(data)
 	if err != nil {
 		return sarRejected, nil, err
 	}

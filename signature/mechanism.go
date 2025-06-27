@@ -3,18 +3,7 @@
 package signature
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
-	"io"
-	"strings"
-
-	// This code is used only to parse the data in an explicitly-untrusted
-	// code path, where cryptography is not relevant. For now, continue to
-	// use this frozen deprecated implementation. When mechanism_openpgp.go
-	// migrates to another implementation, this should migrate as well.
-	//lint:ignore SA1019 See above
-	"golang.org/x/crypto/openpgp" //nolint:staticcheck
+	"github.com/containers/image/v5/signature/internal"
 )
 
 // SigningMechanism abstracts a way to sign binary blobs and verify their signatures.
@@ -37,27 +26,14 @@ type SigningMechanism interface {
 	UntrustedSignatureContents(untrustedSignature []byte) (untrustedContents []byte, shortKeyIdentifier string, err error)
 }
 
-// signingMechanismWithPassphrase is an internal extension of SigningMechanism.
-type signingMechanismWithPassphrase interface {
-	SigningMechanism
-
-	// Sign creates a (non-detached) signature of input using keyIdentity and passphrase.
-	// Fails with a SigningNotSupportedError if the mechanism does not support signing.
-	SignWithPassphrase(input []byte, keyIdentity string, passphrase string) ([]byte, error)
-}
-
 // SigningNotSupportedError is returned when trying to sign using a mechanism which does not support that.
-type SigningNotSupportedError string
-
-func (err SigningNotSupportedError) Error() string {
-	return string(err)
-}
+type SigningNotSupportedError = internal.SigningNotSupportedError
 
 // NewGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism for the user’s default
 // GPG configuration ($GNUPGHOME / ~/.gnupg)
 // The caller must call .Close() on the returned SigningMechanism.
 func NewGPGSigningMechanism() (SigningMechanism, error) {
-	return newGPGSigningMechanismInDirectory("")
+	return internal.NewGPGSigningMechanismInDirectory("")
 }
 
 // NewEphemeralGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism which
@@ -65,33 +41,5 @@ func NewGPGSigningMechanism() (SigningMechanism, error) {
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
 func NewEphemeralGPGSigningMechanism(blob []byte) (SigningMechanism, []string, error) {
-	return newEphemeralGPGSigningMechanism([][]byte{blob})
-}
-
-// gpgUntrustedSignatureContents returns UNTRUSTED contents of the signature WITHOUT ANY VERIFICATION,
-// along with a short identifier of the key used for signing.
-// WARNING: The short key identifier (which corresponds to "Key ID" for OpenPGP keys)
-// is NOT the same as a "key identity" used in other calls to this interface, and
-// the values may have no recognizable relationship if the public key is not available.
-func gpgUntrustedSignatureContents(untrustedSignature []byte) (untrustedContents []byte, shortKeyIdentifier string, err error) {
-	// This uses the Golang-native OpenPGP implementation instead of gpgme because we are not doing any cryptography.
-	md, err := openpgp.ReadMessage(bytes.NewReader(untrustedSignature), openpgp.EntityList{}, nil, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	if !md.IsSigned {
-		return nil, "", errors.New("The input is not a signature")
-	}
-	content, err := io.ReadAll(md.UnverifiedBody)
-	if err != nil {
-		// Coverage: An error during reading the body can happen only if
-		// 1) the message is encrypted, which is not our case (and we don’t give ReadMessage the key
-		// to decrypt the contents anyway), or
-		// 2) the message is signed AND we give ReadMessage a corresponding public key, which we don’t.
-		return nil, "", err
-	}
-
-	// Uppercase the key ID for minimal consistency with the gpgme-returned fingerprints
-	// (but note that key ID is a suffix of the fingerprint only for V4 keys, not V3)!
-	return content, strings.ToUpper(fmt.Sprintf("%016X", md.SignedByKeyId)), nil
+	return internal.NewEphemeralGPGSigningMechanism([][]byte{blob})
 }

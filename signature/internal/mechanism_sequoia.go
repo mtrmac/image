@@ -1,24 +1,24 @@
 //go:build containers_image_sequoia
 
-package signature
+package internal
 
 import (
 	"github.com/containers/image/v5/signature/internal/sequoia"
 )
 
 // A GPG/OpenPGP signing mechanism, implemented using Sequoia and only supporting verification.
-// Legacy users who reach newGPGSigningMechanismInDirectory will use GPGME.
+// Legacy users who reach NewGPGSigningMechanismInDirectory will use GPGME.
 // Signing using Sequoia is preferable, but should happen via signature/simplesequoia.NewSigner, not using
 // the legacy mechanism API.
 type sequoiaEphemeralSigningMechanism struct {
 	inner *sequoia.SigningMechanism
 }
 
-// newEphemeralGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism which
+// NewEphemeralGPGSigningMechanism returns a new GPG/OpenPGP signing mechanism which
 // recognizes _only_ public keys from the supplied blobs, and returns the identities
 // of these keys.
 // The caller must call .Close() on the returned SigningMechanism.
-func newEphemeralGPGSigningMechanism(blobs [][]byte) (signingMechanismWithPassphrase, []string, error) {
+func NewEphemeralGPGSigningMechanism(blobs [][]byte) (SigningMechanismWithPassphrase, []string, error) {
 	mech, err := sequoia.NewEphemeralMechanism()
 	if err != nil {
 		return nil, nil, err

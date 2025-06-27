@@ -1,6 +1,6 @@
 //go:build !containers_image_openpgp && !containers_image_sequoia
 
-package signature
+package internal
 
 import (
 	"os"
@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 func TestGPGMESigningMechanismClose(t *testing.T) {
 	// Closing an ephemeral mechanism removes the directory.
 	// (The non-ephemeral case is tested in the common TestGPGSigningMechanismClose)
-	mech, _, err := NewEphemeralGPGSigningMechanism([]byte{})
+	mech, _, err := NewEphemeralGPGSigningMechanism([][]byte{})
 	require.NoError(t, err)
 	gpgMech, ok := mech.(*gpgmeSigningMechanism)
 	require.True(t, ok)
@@ -40,7 +40,7 @@ func TestGPGMESigningMechanismClose(t *testing.T) {
 }
 
 func TestGPGMESigningMechanismSupportsSigning(t *testing.T) {
-	mech, _, err := NewEphemeralGPGSigningMechanism([]byte{})
+	mech, _, err := NewEphemeralGPGSigningMechanism([][]byte{})
 	require.NoError(t, err)
 	defer mech.Close()
 	err = mech.SupportsSigning()

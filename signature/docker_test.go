@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/containers/image/v5/internal/testing/gpgagent"
+	"github.com/containers/image/v5/signature/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSignDockerManifest(t *testing.T) {
-	mech, err := newGPGSigningMechanismInDirectory(testGPGHomeDirectory)
+	mech, err := internal.NewGPGSigningMechanismInDirectory(testGPGHomeDirectory)
 	require.NoError(t, err)
 	defer mech.Close()
 
@@ -49,7 +50,7 @@ func TestSignDockerManifestWithPassphrase(t *testing.T) {
 	err := gpgagent.KillGPGAgent(testGPGHomeDirectory)
 	require.NoError(t, err)
 
-	mech, err := newGPGSigningMechanismInDirectory(testGPGHomeDirectory)
+	mech, err := internal.NewGPGSigningMechanismInDirectory(testGPGHomeDirectory)
 	require.NoError(t, err)
 	defer mech.Close()
 
@@ -97,7 +98,7 @@ func TestSignDockerManifestWithPassphrase(t *testing.T) {
 }
 
 func TestVerifyDockerManifestSignature(t *testing.T) {
-	mech, err := newGPGSigningMechanismInDirectory(testGPGHomeDirectory)
+	mech, err := internal.NewGPGSigningMechanismInDirectory(testGPGHomeDirectory)
 	require.NoError(t, err)
 	defer mech.Close()
 	manifest, err := os.ReadFile("fixtures/image.manifest.json")
@@ -162,7 +163,7 @@ func TestVerifyDockerManifestSignature(t *testing.T) {
 }
 
 func TestVerifyImageManifestSignatureUsingKeyIdentityList(t *testing.T) {
-	mech, err := newGPGSigningMechanismInDirectory(testGPGHomeDirectory)
+	mech, err := internal.NewGPGSigningMechanismInDirectory(testGPGHomeDirectory)
 	require.NoError(t, err)
 	defer mech.Close()
 	manifest, err := os.ReadFile("fixtures/image.manifest.json")

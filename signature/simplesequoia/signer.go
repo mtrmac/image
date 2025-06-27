@@ -76,20 +76,8 @@ func NewSigner(opts ...Option) (*signer.Signer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initializing Sequoia: %w", err)
 	}
-	s.mech = mech
-	succeeded := false
-	defer func() {
-		if !succeeded {
-			s.mech.Close()
-		}
-	}()
-	if err := mech.SupportsSigning(); err != nil { // FIXME: Drop in internal/sequoia, move to mech_sequoia.go
-		return nil, fmt.Errorf("Signing not supported: %w", err)
-	}
-
 	// Ideally, we should look up (and unlock?) the key at this point already. FIXME: is that possible? Anyway, low-priority.
-
-	succeeded = true
+	s.mech = mech
 	return internalSigner.NewSigner(&s), nil
 }
 

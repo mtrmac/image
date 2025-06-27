@@ -89,7 +89,7 @@ func (m *SigningMechanism) SignWithPassphrase(
 	return C.GoBytes(unsafe.Pointer(cData), C.int(size)), nil
 }
 
-func (m *SigningMechanism) Sign(
+func (m *SigningMechanism) Sign( // FIXME: Remove, no external callers
 	input []byte,
 	keyIdentity string,
 ) ([]byte, error) {
@@ -147,10 +147,6 @@ func (m *SigningMechanism) ImportKeys(blob []byte) ([]string, error) {
 }
 
 func (m *SigningMechanism) Close() error {
-	return nil
-}
-
-func (m *SigningMechanism) SupportsSigning() error {
 	return nil
 }
 
